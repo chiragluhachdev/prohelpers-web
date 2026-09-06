@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+/**
+ * Pro Helper admin — light only, by design.
+ * Off-white ground, white cards, forest green for anything that carries weight.
+ */
+@theme {
+  --color-canvas: #f6f5f1;
+  --color-surface: #ffffff;
+  --color-sunken: #faf9f5;
+
+  --color-line: #e6e4dc;
+  --color-line-strong: #d5d2c7;
+
+  --color-ink: #14201a;
+  --color-ink-soft: #4b5a52;
+  --color-ink-muted: #78857d;
+
+  --color-forest-50: #f1f7f4;
+  --color-forest-100: #dcece3;
+  --color-forest-200: #bcdcca;
+  --color-forest-300: #8fc4a8;
+  --color-forest-400: #56a37f;
+  --color-forest-500: #2f8560;
+  --color-forest-600: #1f6a4b;
+  --color-forest-700: #17543c;
+  --color-forest-800: #143f2e;
+  --color-forest-900: #0f2f23;
+
+  --color-amber-ink: #8a5209;
+  --color-amber-bg: #fdf3e2;
+  --color-rose-ink: #a12a20;
+  --color-rose-bg: #fceeec;
+  --color-sky-ink: #1c4f8a;
+  --color-sky-bg: #eaf2fb;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --radius-card: 14px;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv02", "cv03", "cv04";
+}
+
+/* Numbers in tables should line up. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--color-forest-200);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-forest-600);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* A restrained scrollbar so long tables don't shout. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line-strong);
+  border-radius: 8px;
+  border: 3px solid var(--color-canvas);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
