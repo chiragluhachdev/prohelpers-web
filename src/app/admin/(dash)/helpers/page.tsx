@@ -68,7 +68,7 @@ function HelpersView() {
         ) : (
           <Table head={["Helper", "Verification", "Services", "Area", "Jobs", "Rating", "Joined"]}>
             {data.helpers.map((h) => (
-              <Row key={h.id} onClick={() => (window.location.href = `/helpers/${h.id}`)}>
+              <Row key={h.id} onClick={() => (window.location.href = `/admin/helpers/${h.id}`)}>
                 <Cell>
                   <div className="flex items-center gap-3">
                     <Avatar name={h.name} src={h.photoUrl} />

@@ -67,7 +67,7 @@ export default function BookingsPage() {
         ) : (
           <Table head={["Booking", "Customer", "Helper", "Scheduled", "Status", "Value", "Created"]}>
             {data.bookings.map((b) => (
-              <Row key={b.id} onClick={() => (window.location.href = `/bookings/${b.id}`)}>
+              <Row key={b.id} onClick={() => (window.location.href = `/admin/bookings/${b.id}`)}>
                 <Cell>
                   <span className="font-medium">{b.code}</span>
                   <span className="mt-0.5 block truncate text-xs text-ink-muted">{b.services.join(", ")}</span>

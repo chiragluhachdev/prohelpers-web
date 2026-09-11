@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       tokenStore.set(r.token);
       setUser(r.user);
-      router.push("/dashboard");
+      router.push("/admin/dashboard");
     },
     [router],
   );
@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(() => {
     tokenStore.clear();
     setUser(null);
-    router.push("/login");
+    router.push("/admin/login");
   }, [router]);
 
   const value = useMemo(() => ({ user, loading, signIn, signOut }), [user, loading, signIn, signOut]);

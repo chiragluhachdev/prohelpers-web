@@ -73,7 +73,7 @@ export default function HelperDetailPage() {
 
   return (
     <>
-      <Link href="/helpers" className="mb-4 inline-block text-[13px] font-medium text-ink-muted hover:text-ink">
+      <Link href="/admin/helpers" className="mb-4 inline-block text-[13px] font-medium text-ink-muted hover:text-ink">
         ← All helpers
       </Link>
 
@@ -209,7 +209,7 @@ export default function HelperDetailPage() {
             ) : (
               <Table head={["Booking", "Services", "When", "Status", "Value"]}>
                 {data.tasks.map((t) => (
-                  <Row key={t.id} onClick={() => (window.location.href = `/bookings/${t.id}`)}>
+                  <Row key={t.id} onClick={() => (window.location.href = `/admin/bookings/${t.id}`)}>
                     <Cell className="font-medium">{t.code}</Cell>
                     <Cell className="text-[13px] text-ink-soft">{t.services.join(", ")}</Cell>
                     <Cell className="whitespace-nowrap text-[13px] text-ink-soft">{dateTime(t.scheduledAt)}</Cell>

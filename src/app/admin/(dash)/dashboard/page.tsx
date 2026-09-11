@@ -43,7 +43,7 @@ export default function DashboardPage() {
         subtitle="Everything happening on the platform right now."
         action={
           s.pendingApprovals > 0 ? (
-            <Link href="/helpers?status=PENDING_VERIFICATION">
+            <Link href="/admin/helpers?status=PENDING_VERIFICATION">
               <Button>
                 Review {s.pendingApprovals} pending {s.pendingApprovals === 1 ? "helper" : "helpers"}
               </Button>
@@ -87,7 +87,7 @@ export default function DashboardPage() {
           <SectionTitle
             title="Recent requests"
             action={
-              <Link href="/bookings" className="text-[13px] font-medium text-forest-700 hover:underline">
+              <Link href="/admin/bookings" className="text-[13px] font-medium text-forest-700 hover:underline">
                 View all
               </Link>
             }
@@ -98,7 +98,7 @@ export default function DashboardPage() {
             ) : (
               <Table head={["Booking", "Customer", "Helper", "When", "Status", "Value"]}>
                 {data.recentTasks.map((t) => (
-                  <Row key={t.id} onClick={() => (window.location.href = `/bookings/${t.id}`)}>
+                  <Row key={t.id} onClick={() => (window.location.href = `/admin/bookings/${t.id}`)}>
                     <Cell>
                       <span className="font-medium">{t.code}</span>
                       <span className="mt-0.5 block truncate text-xs text-ink-muted">
@@ -127,7 +127,7 @@ export default function DashboardPage() {
                 {data.pendingHelpers.map((h) => (
                   <li key={h.id} className="border-b border-line/70 last:border-0">
                     <Link
-                      href={`/helpers/${h.id}`}
+                      href={`/admin/helpers/${h.id}`}
                       className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-sunken"
                     >
                       <Avatar name={h.name} src={h.photoUrl} />

@@ -42,7 +42,7 @@ export async function api<T = unknown>(path: string, { method = "GET", body, sig
     const err = payload?.error ?? {};
     if (res.status === 401 && typeof window !== "undefined") {
       tokenStore.clear();
-      if (!window.location.pathname.startsWith("/login")) window.location.href = "/login";
+      if (!window.location.pathname.startsWith("/admin/login")) window.location.href = "/admin/login";
     }
     throw new ApiError(res.status, err.message || "Something went wrong.", err.code);
   }

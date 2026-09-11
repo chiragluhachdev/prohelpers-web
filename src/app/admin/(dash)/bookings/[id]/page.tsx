@@ -71,7 +71,7 @@ export default function BookingDetailPage() {
 
   return (
     <>
-      <Link href="/bookings" className="mb-4 inline-block text-[13px] font-medium text-ink-muted hover:text-ink">
+      <Link href="/admin/bookings" className="mb-4 inline-block text-[13px] font-medium text-ink-muted hover:text-ink">
         ← All bookings
       </Link>
 
@@ -110,7 +110,7 @@ export default function BookingDetailPage() {
                 [
                   "Helper",
                   task.helper ? (
-                    <Link href={`/helpers/${task.helper.id}`} className="text-forest-700 hover:underline">
+                    <Link href={`/admin/helpers/${task.helper.id}`} className="text-forest-700 hover:underline">
                       {task.helper.name} · {task.helper.phone}
                     </Link>
                   ) : (
@@ -164,7 +164,7 @@ export default function BookingDetailPage() {
                     <Cell className="tabular text-ink-muted">{r.round}</Cell>
                     <Cell>
                       {r.helper ? (
-                        <Link href={`/helpers/${r.helper.id}`} className="font-medium text-forest-700 hover:underline">
+                        <Link href={`/admin/helpers/${r.helper.id}`} className="font-medium text-forest-700 hover:underline">
                           {r.helper.name}
                         </Link>
                       ) : (

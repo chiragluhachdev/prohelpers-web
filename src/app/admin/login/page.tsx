@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) router.replace("/dashboard");
+    if (!loading && user) router.replace("/admin/dashboard");
   }, [user, loading, router]);
 
   async function onSubmit(e: React.FormEvent) {
