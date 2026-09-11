@@ -7,6 +7,7 @@ import { rupees } from "@/lib/format";
 import {
   Badge, Button, Card, Cell, EmptyState, ErrorNote, Field, Input,
   Modal, PageHeader, Row, SectionTitle, Spinner, Table, Textarea,
+  SkeletonRows,
 } from "@/components/ui";
 
 type Service = {
@@ -104,7 +105,7 @@ export default function ServicesPage() {
 
       <Card padded={false}>
         {loading ? (
-          <Spinner />
+          <SkeletonRows rows={6} cols={6} />
         ) : services.length === 0 ? (
           <EmptyState title="No services yet" body="Add the first service customers can book." />
         ) : (

@@ -15,7 +15,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-[14px] border border-line bg-surface shadow-[0_1px_2px_rgba(20,32,26,0.04)] ${
+      className={`rounded-[14px] border border-line bg-surface shadow-[0_1px_2px_rgba(20,32,26,0.04),0_8px_24px_-16px_rgba(20,32,26,0.18)] ${
         padded ? "p-5" : ""
       } ${className}`}
     >
@@ -196,7 +196,7 @@ export function Table({ head, children }: { head: React.ReactNode[]; children: R
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[640px] border-collapse text-sm">
-        <thead>
+        <thead className="sticky top-0 z-10 bg-sunken/80 backdrop-blur">
           <tr className="border-b border-line">
             {head.map((h, i) => (
               <th
@@ -224,8 +224,10 @@ export function Row({
   return (
     <tr
       onClick={onClick}
-      className={`border-b border-line/70 last:border-0 ${
-        onClick ? "cursor-pointer transition-colors hover:bg-sunken" : ""
+      className={`group border-b border-line/70 last:border-0 ${
+        onClick
+          ? "cursor-pointer transition-colors hover:bg-forest-50/60 focus-within:bg-forest-50/60"
+          : ""
       }`}
     >
       {children}
@@ -244,6 +246,25 @@ export function EmptyState({ title, body }: { title: string; body?: string }) {
     <div className="flex flex-col items-center justify-center gap-1 px-6 py-14 text-center">
       <p className="text-sm font-medium text-ink">{title}</p>
       {body && <p className="max-w-sm text-sm text-ink-muted">{body}</p>}
+    </div>
+  );
+}
+
+/** Placeholder rows while a table loads — keeps the layout from jumping. */
+export function SkeletonRows({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
+  return (
+    <div className="divide-y divide-line/70">
+      {Array.from({ length: rows }).map((_, r) => (
+        <div key={r} className="flex items-center gap-4 px-4 py-4">
+          {Array.from({ length: cols }).map((_, c) => (
+            <div
+              key={c}
+              className="h-3 animate-pulse rounded bg-line"
+              style={{ width: c === 0 ? "28%" : `${14 + ((r + c) % 3) * 6}%` }}
+            />
+          ))}
+        </div>
+      ))}
     </div>
   );
 }
@@ -272,22 +293,39 @@ export function Stat({
   value,
   sub,
   tone = "slate",
+  icon,
+  onClick,
 }: {
   label: string;
   value: React.ReactNode;
   sub?: string;
   tone?: Tone;
+  icon?: React.ReactNode;
+  onClick?: () => void;
 }) {
-  return (
-    <Card className="min-w-0">
-      <p className="truncate text-[13px] font-medium text-ink-soft">{label}</p>
-      <p className="tabular mt-2 text-[26px] font-semibold leading-none tracking-[-0.02em] text-ink">{value}</p>
+  const body = (
+    <Card className={`min-w-0 ${onClick ? "transition-transform hover:-translate-y-0.5" : ""}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="truncate text-[13px] font-medium text-ink-soft">{label}</p>
+        {icon && (
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-forest-50 text-forest-700">
+            {icon}
+          </span>
+        )}
+      </div>
+      <p className="tabular mt-2.5 text-[26px] font-semibold leading-none tracking-[-0.02em] text-ink">{value}</p>
       {sub && (
-        <p className="mt-2">
+        <p className="mt-2.5">
           <Badge tone={tone}>{sub}</Badge>
         </p>
       )}
     </Card>
+  );
+  if (!onClick) return body;
+  return (
+    <button onClick={onClick} className="block w-full text-left">
+      {body}
+    </button>
   );
 }
 
@@ -301,6 +339,26 @@ export function KeyValue({ items }: { items: [string, React.ReactNode][] }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/** Label/value pair for detail panels. Keeps long values from breaking layout. */
+export function Detail({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: React.ReactNode;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-6 border-b border-line/70 py-2.5 last:border-0">
+      <dt className="shrink-0 text-[13px] text-ink-muted">{label}</dt>
+      <dd className={`min-w-0 break-words text-right text-[13.5px] font-medium text-ink ${mono ? "tabular" : ""}`}>
+        {value ?? "—"}
+      </dd>
+    </div>
   );
 }
 

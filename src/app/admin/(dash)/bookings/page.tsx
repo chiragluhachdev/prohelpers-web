@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import { dateTime, relative, rupees } from "@/lib/format";
 import {
   Card, Cell, EmptyState, ErrorNote, Input, PageHeader,
-  Row, Spinner, StatusBadge, Table, Tabs,
+  Row, SkeletonRows, Spinner, StatusBadge, Table, Tabs,
 } from "@/components/ui";
 
 type Booking = {
@@ -27,6 +28,7 @@ const FILTERS = [
 type FilterKey = (typeof FILTERS)[number]["key"];
 
 export default function BookingsPage() {
+  const router = useRouter();
   const [status, setStatus] = useState<FilterKey>("ALL");
   const [q, setQ] = useState("");
 
@@ -61,13 +63,13 @@ export default function BookingsPage() {
 
       <Card padded={false}>
         {loading ? (
-          <Spinner />
+          <SkeletonRows rows={6} cols={7} />
         ) : !data?.bookings.length ? (
           <EmptyState title="No bookings here" body="Try a different filter." />
         ) : (
           <Table head={["Booking", "Customer", "Helper", "Scheduled", "Status", "Value", "Created"]}>
             {data.bookings.map((b) => (
-              <Row key={b.id} onClick={() => (window.location.href = `/admin/bookings/${b.id}`)}>
+              <Row key={b.id} onClick={() => router.push(`/admin/bookings/${b.id}`)}>
                 <Cell>
                   <span className="font-medium">{b.code}</span>
                   <span className="mt-0.5 block truncate text-xs text-ink-muted">{b.services.join(", ")}</span>

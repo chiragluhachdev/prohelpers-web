@@ -7,6 +7,7 @@ import { relative, rupees } from "@/lib/format";
 import {
   Avatar, Button, Card, Cell, EmptyState, ErrorNote, Field, Input,
   Modal, PageHeader, Row, Spinner, StatusBadge, Table, Textarea,
+  SkeletonRows,
 } from "@/components/ui";
 
 type Customer = {
@@ -63,7 +64,7 @@ export default function CustomersPage() {
 
       <Card padded={false}>
         {loading ? (
-          <Spinner />
+          <SkeletonRows rows={6} cols={7} />
         ) : !data?.customers.length ? (
           <EmptyState title="No customers found" body="They appear here as soon as they sign up on the app." />
         ) : (

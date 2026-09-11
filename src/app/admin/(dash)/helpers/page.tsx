@@ -3,11 +3,13 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import { relative, titleCase } from "@/lib/format";
 import {
   Avatar, Badge, Card, Cell, Dot, EmptyState, ErrorNote, Input,
   PageHeader, Row, Spinner, StatusBadge, Table, Tabs,
+  SkeletonRows,
 } from "@/components/ui";
 
 type Helper = {
@@ -24,6 +26,7 @@ const FILTERS = ["ALL", "PENDING_VERIFICATION", "APPROVED", "REJECTED", "DRAFT"]
 type Filter = (typeof FILTERS)[number];
 
 function HelpersView() {
+  const router = useRouter();
   const params = useSearchParams();
   const [status, setStatus] = useState<Filter>((params.get("status") as Filter) || "ALL");
   const [q, setQ] = useState("");
@@ -59,7 +62,7 @@ function HelpersView() {
 
       <Card padded={false}>
         {loading ? (
-          <Spinner />
+          <SkeletonRows rows={6} cols={7} />
         ) : !data?.helpers.length ? (
           <EmptyState
             title="No helpers here"
@@ -68,7 +71,7 @@ function HelpersView() {
         ) : (
           <Table head={["Helper", "Verification", "Services", "Area", "Jobs", "Rating", "Joined"]}>
             {data.helpers.map((h) => (
-              <Row key={h.id} onClick={() => (window.location.href = `/admin/helpers/${h.id}`)}>
+              <Row key={h.id} onClick={() => router.push(`/admin/helpers/${h.id}`)}>
                 <Cell>
                   <div className="flex items-center gap-3">
                     <Avatar name={h.name} src={h.photoUrl} />

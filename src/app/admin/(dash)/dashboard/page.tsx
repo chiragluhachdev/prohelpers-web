@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import { rupees, dateTime, relative } from "@/lib/format";
 import {
@@ -27,6 +28,7 @@ type Dashboard = {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
   // Bookings move on their own — refresh quietly so the numbers stay honest.
   const { data, error, loading } = useApi<Dashboard>("/api/admin/dashboard", { pollMs: 10_000 });
 
@@ -53,35 +55,63 @@ export default function DashboardPage() {
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Customers" value={s.customers} />
+        <Stat
+          label="Customers"
+          value={s.customers}
+          onClick={() => router.push("/admin/customers")}
+          icon={<Glyph d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />}
+        />
         <Stat
           label="Helpers"
           value={s.helpers}
           sub={`${s.onlineHelpers} online now`}
           tone={s.onlineHelpers > 0 ? "green" : "slate"}
+          onClick={() => router.push("/admin/helpers")}
+          icon={<Glyph d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87" />}
         />
         <Stat
           label="Pending verification"
           value={s.pendingApprovals}
           sub={s.pendingApprovals > 0 ? "Needs review" : "All clear"}
           tone={s.pendingApprovals > 0 ? "amber" : "green"}
+          onClick={() => router.push("/admin/helpers?status=PENDING_VERIFICATION")}
+          icon={<Glyph d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Zm-3-10 2 2 4-4" />}
         />
-        <Stat label="Bookings today" value={s.todayBookings} sub={`${s.activeTasks} in flight`} tone="sky" />
+        <Stat
+          label="Bookings today"
+          value={s.todayBookings}
+          sub={`${s.activeTasks} in flight`}
+          tone="sky"
+          onClick={() => router.push("/admin/bookings")}
+          icon={<Glyph d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />}
+        />
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Completed" value={s.completedTasks} />
+        <Stat label="Completed" value={s.completedTasks} sub={`${s.cancelledTasks} cancelled`} />
         <Stat
           label="No helper available"
           value={s.noHelperTasks}
           sub={s.noHelperTasks > 0 ? "Check coverage" : "None"}
           tone={s.noHelperTasks > 0 ? "rose" : "slate"}
         />
-        <Stat label="Revenue" value={rupees(s.revenue)} sub="Completed bookings" />
+        <Stat label="Revenue" value={rupees(s.revenue)} sub="From completed bookings" tone="green" />
         <Stat label="Commission owed" value={rupees(s.outstandingCommission)} sub="From helpers" tone="amber" />
       </div>
 
       {/* ------------------------------------------------ verification queue */}
+      {s.customers === 0 && s.helpers === 0 && (
+        <div className="mt-6">
+          <Card>
+            <SectionTitle title="Nothing here yet" />
+            <p className="text-sm leading-relaxed text-ink-soft">
+              No customers or helpers have registered. Sign up through the app and
+              they will appear here — helpers land in the verification queue first.
+            </p>
+          </Card>
+        </div>
+      )}
+
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div>
           <SectionTitle
@@ -98,7 +128,7 @@ export default function DashboardPage() {
             ) : (
               <Table head={["Booking", "Customer", "Helper", "When", "Status", "Value"]}>
                 {data.recentTasks.map((t) => (
-                  <Row key={t.id} onClick={() => (window.location.href = `/admin/bookings/${t.id}`)}>
+                  <Row key={t.id} onClick={() => router.push(`/admin/bookings/${t.id}`)}>
                     <Cell>
                       <span className="font-medium">{t.code}</span>
                       <span className="mt-0.5 block truncate text-xs text-ink-muted">
@@ -147,5 +177,15 @@ export default function DashboardPage() {
         </div>
       </div>
     </>
+  );
+}
+
+/** Compact 24×24 stroke icon for the stat tiles. */
+function Glyph({ d }: { d: string }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d={d} />
+    </svg>
   );
 }

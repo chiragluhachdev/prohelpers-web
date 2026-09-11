@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
+import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import { dateTime, relative, rupees, titleCase } from "@/lib/format";
 import {
@@ -26,7 +27,8 @@ type Detail = {
     gender?: string; experienceYears?: number; bio?: string;
     aadhaarLast4?: string; aadhaarName?: string; kycStatus: string; kycMethod?: string; kycVerifiedAt?: string;
     approvalStatus: string; rejectionReason?: string; submittedAt?: string; reviewedAt?: string;
-    services: string[]; serviceArea?: { label?: string; lat?: number; lng?: number; radiusKm?: number };
+    services: string[]; societies?: string[];
+    serviceArea?: { label?: string; lat?: number; lng?: number; radiusKm?: number };
     workDays: number[]; workStart: string; workEnd: string;
     isOnline: boolean; dnd: boolean; ratingAvg: number; ratingCount: number; completedJobs: number;
   } | null;
@@ -39,6 +41,7 @@ type Detail = {
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function HelperDetailPage() {
+  const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const { data, error, loading, reload } = useApi<Detail>(`/api/admin/helpers/${id}`);
 
@@ -133,8 +136,10 @@ export default function HelperDetailPage() {
               items={[
                 ["Name on Aadhaar", profile.aadhaarName],
                 ["Aadhaar number", profile.aadhaarLast4 ? `XXXX XXXX ${profile.aadhaarLast4}` : "—"],
+                ["Method", profile.kycMethod ? titleCase(profile.kycMethod) : "—"],
                 ["Verified on", profile.kycVerifiedAt ? dateTime(profile.kycVerifiedAt) : "—"],
                 ["Submitted for review", profile.submittedAt ? dateTime(profile.submittedAt) : "Not submitted"],
+                ["Reviewed on", profile.reviewedAt ? dateTime(profile.reviewedAt) : "—"],
               ]}
             />
           </Card>
@@ -209,7 +214,7 @@ export default function HelperDetailPage() {
             ) : (
               <Table head={["Booking", "Services", "When", "Status", "Value"]}>
                 {data.tasks.map((t) => (
-                  <Row key={t.id} onClick={() => (window.location.href = `/admin/bookings/${t.id}`)}>
+                  <Row key={t.id} onClick={() => router.push(`/admin/bookings/${t.id}`)}>
                     <Cell className="font-medium">{t.code}</Cell>
                     <Cell className="text-[13px] text-ink-soft">{t.services.join(", ")}</Cell>
                     <Cell className="whitespace-nowrap text-[13px] text-ink-soft">{dateTime(t.scheduledAt)}</Cell>
@@ -250,7 +255,7 @@ export default function HelperDetailPage() {
           </Card>
 
           <Card>
-            <SectionTitle title="Services & availability" />
+            <SectionTitle title="Services &amp; coverage" />
             <div className="mb-4 flex flex-wrap gap-1.5">
               {profile.services?.length ? (
                 profile.services.map((s) => <Badge key={s} tone="green">{titleCase(s)}</Badge>)
@@ -258,12 +263,22 @@ export default function HelperDetailPage() {
                 <span className="text-sm text-ink-muted">No services selected</span>
               )}
             </div>
+            <p className="mb-2 text-[12px] font-medium uppercase tracking-[0.05em] text-ink-muted">
+              Societies
+            </p>
+            <div className="mb-4 flex flex-wrap gap-1.5">
+              {profile.societies?.length ? (
+                profile.societies.map((s) => (
+                  <Badge key={s} tone="sky">{titleCase(s.replace(/_/g, " "))}</Badge>
+                ))
+              ) : (
+                <span className="text-sm text-ink-muted">None chosen</span>
+              )}
+            </div>
             <KeyValue
               items={[
-                ["Service area", profile.serviceArea?.label || "—"],
-                ["Radius", profile.serviceArea?.radiusKm ? `${profile.serviceArea.radiusKm} km` : "—"],
                 ["Hours", `${profile.workStart} – ${profile.workEnd}`],
-                ["Days", profile.workDays?.map((d) => DAYS[d]).join(", ") || "—"],
+                ["Days", profile.workDays?.length === 7 ? "Every day" : profile.workDays?.map((d) => DAYS[d]).join(", ") || "—"],
               ]}
             />
           </Card>
