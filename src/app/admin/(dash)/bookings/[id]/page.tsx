@@ -22,6 +22,7 @@ type BookingDetail = {
       label?: string; line1: string; line2?: string; landmark?: string;
       city?: string; pincode?: string; society?: string; lat?: number; lng?: number;
     };
+    bookingType?: "instant" | "scheduled";
     scheduledAt: string; scheduledDate: string; scheduledTime: string; durationMins: number;
     instructions?: string; paymentStatus: string; paymentMode: string;
     pricing: {
@@ -109,7 +110,15 @@ export default function BookingDetailPage() {
 
       {/* ------------------------------------------------- at a glance */}
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Card><p className="text-[12px] text-ink-muted">Scheduled</p><p className="mt-1 text-[14px] font-semibold">{dateTime(task.scheduledAt)}</p></Card>
+        <Card>
+          <p className="text-[12px] text-ink-muted">
+            {task.bookingType === "instant" ? "Requested" : "Scheduled"}
+          </p>
+          <p className="mt-1 text-[14px] font-semibold">{dateTime(task.scheduledAt)}</p>
+          {task.bookingType === "instant" && (
+            <span className="mt-1 inline-block"><Badge tone="amber">Instant · ASAP</Badge></span>
+          )}
+        </Card>
         <Card><p className="text-[12px] text-ink-muted">Duration</p><p className="mt-1 text-[14px] font-semibold">{task.durationMins} mins</p></Card>
         <Card><p className="text-[12px] text-ink-muted">Customer pays</p><p className="tabular mt-1 text-[14px] font-semibold">{money(p.total)}</p></Card>
         <Card><p className="text-[12px] text-ink-muted">Helper earns</p><p className="tabular mt-1 text-[14px] font-semibold text-forest-700">{money(p.helperPayout)}</p></Card>

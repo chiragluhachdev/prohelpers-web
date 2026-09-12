@@ -29,16 +29,14 @@ type Detail = {
     approvalStatus: string; rejectionReason?: string; submittedAt?: string; reviewedAt?: string;
     services: string[]; societies?: string[];
     serviceArea?: { label?: string; lat?: number; lng?: number; radiusKm?: number };
-    workDays: number[]; workStart: string; workEnd: string;
     isOnline: boolean; dnd: boolean; ratingAvg: number; ratingCount: number; completedJobs: number;
+    paymentDetails?: { method?: "UPI" | "BANK"; upiId?: string; accountNo?: string; ifsc?: string };
   } | null;
   documents: Doc[];
   tasks: { id: string; code: string; status: string; statusLabel: string; services: string[]; total: number; scheduledAt: string }[];
   ratings: { _id: string; stars: number; comment?: string; createdAt: string }[];
   earnings: Record<string, number>;
 };
-
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function HelperDetailPage() {
   const router = useRouter();
@@ -277,8 +275,15 @@ export default function HelperDetailPage() {
             </div>
             <KeyValue
               items={[
-                ["Hours", `${profile.workStart} – ${profile.workEnd}`],
-                ["Days", profile.workDays?.length === 7 ? "Every day" : profile.workDays?.map((d) => DAYS[d]).join(", ") || "—"],
+                [
+                  "Availability",
+                  profile.dnd
+                    ? "Do not disturb"
+                    : profile.isOnline
+                      ? "Online — taking jobs"
+                      : "Offline",
+                ],
+                ["Coverage", profile.serviceArea?.label || "—"],
               ]}
             />
           </Card>
@@ -292,6 +297,38 @@ export default function HelperDetailPage() {
                 ["Paid out", rupees(data.earnings?.PAYOUT)],
               ]}
             />
+
+            <div className="mt-4 border-t border-line pt-4">
+              <p className="mb-2 text-[12px] font-medium uppercase tracking-[0.05em] text-ink-muted">
+                Payout details
+              </p>
+              {(() => {
+                const pay = profile.paymentDetails;
+                const hasUpi = Boolean(pay?.upiId);
+                const hasBank = Boolean(pay?.accountNo && pay?.ifsc);
+                if (!hasUpi && !hasBank) {
+                  return (
+                    <p className="text-sm text-ink-muted">
+                      Not provided. Optional today — payment is collected directly by the helper.
+                    </p>
+                  );
+                }
+                return (
+                  <KeyValue
+                    items={[
+                      ["Preferred", <Badge key="m" tone="sky">{pay?.method === "BANK" ? "Bank transfer" : "UPI"}</Badge>],
+                      ...(hasUpi ? ([["UPI ID", pay!.upiId!]] as [string, React.ReactNode][]) : []),
+                      ...(hasBank
+                        ? ([
+                            ["Account", `••••${pay!.accountNo!.slice(-4)}`],
+                            ["IFSC", pay!.ifsc!],
+                          ] as [string, React.ReactNode][])
+                        : []),
+                    ]}
+                  />
+                );
+              })()}
+            </div>
           </Card>
         </div>
       </div>

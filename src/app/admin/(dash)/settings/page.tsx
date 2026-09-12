@@ -9,14 +9,28 @@ import {
   PageHeader, Row, SectionTitle, Spinner, Table,
 } from "@/components/ui";
 
-type Settings = Record<string, number | string>;
+type Settings = Record<string, number | string | boolean>;
+
+type SettingField = {
+  key: string;
+  label: string;
+  suffix?: string;
+  type?: "number" | "text" | "boolean";
+  help?: string;
+};
 
 /** Grouped so the page reads like a policy document, not a key/value dump. */
-const GROUPS: { title: string; blurb: string; keys: { key: string; label: string; suffix?: string }[] }[] = [
+const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
   {
     title: "Matching",
-    blurb: "How far the search reaches and how long a helper has to answer.",
+    blurb: "Who gets alerted for a new booking, how far the search reaches, and how long a helper has to answer.",
     keys: [
+      {
+        key: "match_ignore_location",
+        label: "Alert every helper, wherever they work",
+        type: "boolean",
+        help: "On: a booking goes to every available helper. Off: only helpers who cover that society are alerted.",
+      },
       { key: "search_radius_km", label: "Initial search radius", suffix: "km" },
       { key: "radius_step_km", label: "Widen radius each round by", suffix: "km" },
       { key: "max_dispatch_rounds", label: "Maximum rounds", suffix: "rounds" },
@@ -32,6 +46,7 @@ const GROUPS: { title: string; blurb: string; keys: { key: string; label: string
       { key: "helper_commission_percent", label: "Helper commission", suffix: "%" },
       { key: "gst_percent", label: "GST", suffix: "%" },
       { key: "surcharge_flat", label: "Flat surcharge", suffix: "₹" },
+      { key: "currency", label: "Currency", type: "text", help: "ISO code used on every bill and ledger entry." },
     ],
   },
   {
@@ -50,6 +65,8 @@ type AuditLog = {
   _id: string; action: string; entity: string; reason?: string; createdAt: string;
   adminId?: { name: string; email: string } | null;
 };
+
+const toBool = (v: unknown) => v === true || v === "true" || v === 1 || v === "1";
 
 export default function SettingsPage() {
   const { data, error, loading, reload } = useApi<{ settings: Settings }>("/api/admin/settings");
@@ -114,15 +131,41 @@ export default function SettingsPage() {
             <SectionTitle title={group.title} />
             <p className="-mt-1 mb-4 text-[13px] text-ink-muted">{group.blurb}</p>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {group.keys.map(({ key, label, suffix }) => (
-                <Field key={key} label={label} hint={suffix}>
-                  <Input
-                    type="number"
-                    value={String(draft[key] ?? "")}
-                    onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
-                  />
-                </Field>
-              ))}
+              {group.keys.map(({ key, label, suffix, type, help }) =>
+                type === "boolean" ? (
+                  <div key={key} className="sm:col-span-2 lg:col-span-3">
+                    <button
+                      type="button"
+                      onClick={() => setDraft((d) => ({ ...d, [key]: !toBool(d[key]) }))}
+                      className="flex w-full items-start gap-3 rounded-[10px] border border-line bg-sunken p-3 text-left transition hover:border-forest-300"
+                    >
+                      <span
+                        className={`mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition ${
+                          toBool(draft[key]) ? "bg-forest-600" : "bg-line-strong"
+                        }`}
+                      >
+                        <span
+                          className={`h-4 w-4 rounded-full bg-surface shadow transition ${
+                            toBool(draft[key]) ? "translate-x-4" : ""
+                          }`}
+                        />
+                      </span>
+                      <span>
+                        <span className="block text-[13px] font-medium text-ink">{label}</span>
+                        {help && <span className="mt-0.5 block text-[12px] text-ink-muted">{help}</span>}
+                      </span>
+                    </button>
+                  </div>
+                ) : (
+                  <Field key={key} label={label} hint={suffix ?? help}>
+                    <Input
+                      type={type === "text" ? "text" : "number"}
+                      value={String(draft[key] ?? "")}
+                      onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+                    />
+                  </Field>
+                ),
+              )}
             </div>
           </Card>
         ))}

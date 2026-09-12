@@ -25,7 +25,55 @@ type Dashboard = {
     id: string; name: string; phone: string; photoUrl?: string;
     submittedAt: string; services: string[]; kycStatus: string;
   }[];
+  trend: { date: string; bookings: number; completed: number; revenue: number }[];
 };
+
+/**
+ * Seven days of bookings, drawn from the same aggregate the numbers above come
+ * from. Bars are relative to the busiest day, so the shape is readable whether
+ * the week saw three bookings or three hundred.
+ */
+function TrendChart({ data }: { data: Dashboard["trend"] }) {
+  const peak = Math.max(...data.map((d) => d.bookings), 1);
+  const total = data.reduce((sum, d) => sum + d.bookings, 0);
+  const completed = data.reduce((sum, d) => sum + d.completed, 0);
+  const earned = data.reduce((sum, d) => sum + d.revenue, 0);
+
+  return (
+    <Card>
+      <SectionTitle title="Last 7 days" />
+      <div className="-mt-1 mb-4 flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-ink-muted">
+        <span><span className="font-semibold text-ink">{total}</span> booked</span>
+        <span><span className="font-semibold text-ink">{completed}</span> completed</span>
+        <span><span className="font-semibold text-forest-700">{rupees(earned)}</span> earned</span>
+      </div>
+
+      <div className="flex h-28 items-end gap-1.5">
+        {data.map((d) => {
+          const day = new Date(`${d.date}T00:00:00`);
+          const height = d.bookings === 0 ? 3 : Math.max(8, Math.round((d.bookings / peak) * 100));
+          return (
+            <div key={d.date} className="group flex flex-1 flex-col items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-ink-muted opacity-0 transition group-hover:opacity-100">
+                {d.bookings}
+              </span>
+              <div
+                className={`w-full rounded-t-[4px] transition ${
+                  d.bookings === 0 ? "bg-line" : "bg-forest-500 group-hover:bg-forest-600"
+                }`}
+                style={{ height: `${height}%` }}
+                title={`${day.toDateString()} — ${d.bookings} booked, ${d.completed} completed`}
+              />
+              <span className="text-[11px] text-ink-muted">
+                {day.toLocaleDateString("en-IN", { weekday: "short" })}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -42,7 +90,7 @@ export default function DashboardPage() {
     <>
       <PageHeader
         title="Dashboard"
-        subtitle="Everything happening on the platform right now."
+        subtitle="Everything happening on the platform right now. Refreshes every 10 seconds."
         action={
           s.pendingApprovals > 0 ? (
             <Link href="/admin/helpers?status=PENDING_VERIFICATION">
@@ -111,6 +159,12 @@ export default function DashboardPage() {
           </Card>
         </div>
       )}
+
+      {data.trend?.length ? (
+        <div className="mt-6">
+          <TrendChart data={data.trend} />
+        </div>
+      ) : null}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div>

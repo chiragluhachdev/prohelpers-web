@@ -11,7 +11,7 @@ import {
 
 type Booking = {
   id: string; code: string; status: string; statusLabel: string; services: string[];
-  total: number; scheduledAt: string; createdAt: string; area: string;
+  total: number; bookingType?: "instant" | "scheduled"; scheduledAt: string; createdAt: string; area: string;
   customer: { name: string } | null; helper: { name: string } | null;
 };
 
@@ -76,7 +76,14 @@ export default function BookingsPage() {
                 </Cell>
                 <Cell className="text-ink-soft">{b.customer?.name || "—"}</Cell>
                 <Cell className="text-ink-soft">{b.helper?.name || <span className="text-ink-muted">Unassigned</span>}</Cell>
-                <Cell className="whitespace-nowrap text-[13px] text-ink-soft">{dateTime(b.scheduledAt)}</Cell>
+                <Cell className="whitespace-nowrap text-[13px] text-ink-soft">
+                  {dateTime(b.scheduledAt)}
+                  {b.bookingType === "instant" && (
+                    <span className="ml-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-ink">
+                      Instant
+                    </span>
+                  )}
+                </Cell>
                 <Cell><StatusBadge status={b.status} label={b.statusLabel} /></Cell>
                 <Cell className="tabular whitespace-nowrap font-medium">{rupees(b.total)}</Cell>
                 <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{relative(b.createdAt)}</Cell>

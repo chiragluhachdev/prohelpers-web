@@ -396,22 +396,74 @@ export function Tabs<T extends string>({
 export function Modal({
   open,
   title,
+  subtitle,
   onClose,
+  size = "md",
   children,
 }: {
   open: boolean;
   title: string;
+  subtitle?: string;
   onClose: () => void;
+  /** "lg" for anything that edits a list rather than a handful of fields. */
+  size?: "md" | "lg";
   children: React.ReactNode;
 }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
       <div className="absolute inset-0 bg-ink/25" onClick={onClose} />
-      <Card className="relative z-10 w-full max-w-md">
-        <h3 className="mb-4 text-base font-semibold text-ink">{title}</h3>
+      <Card
+        className={`relative z-10 my-auto w-full ${size === "lg" ? "max-w-2xl" : "max-w-md"}`}
+      >
+        <div className="mb-4">
+          <h3 className="text-base font-semibold text-ink">{title}</h3>
+          {subtitle && <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">{subtitle}</p>}
+        </div>
         {children}
       </Card>
     </div>
+  );
+}
+
+export function Select({ className = "", ...rest }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...rest}
+      className={`h-10 w-full rounded-[9px] border border-line-strong bg-surface px-2.5 text-sm text-ink focus:border-forest-500 focus:outline-none ${className}`}
+    />
+  );
+}
+
+/** A labelled switch. The label is part of the control, so the whole row toggles. */
+export function Toggle({
+  on,
+  onChange,
+  label,
+  help,
+}: {
+  on: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+  help?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!on)}
+      className="flex w-full items-start gap-3 rounded-[10px] border border-line bg-sunken p-3 text-left transition hover:border-forest-300"
+    >
+      <span
+        className={`mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition ${
+          on ? "bg-forest-600" : "bg-line-strong"
+        }`}
+      >
+        <span className={`h-4 w-4 rounded-full bg-surface shadow transition ${on ? "translate-x-4" : ""}`} />
+      </span>
+      <span>
+        <span className="block text-[13px] font-medium text-ink">{label}</span>
+        {help && <span className="mt-0.5 block text-[12px] leading-relaxed text-ink-muted">{help}</span>}
+      </span>
+    </button>
   );
 }
