@@ -12,15 +12,14 @@ import {
 
 type Pricing = {
   servicesAmount: number; platformFee: number; platformFeePercent: number;
-  surcharge: number; discount: number; gst: number; gstPercent: number;
-  total: number; helperCommission: number; helperCommissionPercent: number;
+  discount: number; total: number; helperCommission: number; helperCommissionPercent: number;
   helperPayout: number; currency?: string;
 };
 
 type Finance = {
   totals: {
     bookings: number; gross: number; services: number; platformFee: number;
-    surcharge: number; gst: number; commission: number; helperPayout: number;
+    commission: number; helperPayout: number;
     platformEarned: number; awaitingPayment: number;
   };
   byDay: { date: string; bookings: number; gross: number; platformEarned: number }[];
@@ -135,8 +134,6 @@ export default function FinancePage() {
             items={[
               ["Services", rupees(t.services)],
               ["Service fee", rupees(t.platformFee)],
-              ["Surcharge", rupees(t.surcharge)],
-              ["GST collected", rupees(t.gst)],
               ["Customer total", rupees(t.gross)],
               ["Helper commission", rupees(t.commission)],
               ["Helper payout", rupees(t.helperPayout)],
@@ -211,7 +208,7 @@ export default function FinancePage() {
             <EmptyState title="No completed bookings yet" />
           ) : (
             <Table
-              head={["Booking", "Customer", "Helper", "Services", "Fee", "GST", "Commission", "Payout", "Total", "Paid"]}
+              head={["Booking", "Customer", "Helper", "Services", "Fee", "Commission", "Payout", "Total", "Paid"]}
             >
               {data.bookings.map((b) => (
                 <Row key={b.id} onClick={() => router.push(`/admin/bookings/${b.id}`)}>
@@ -223,7 +220,6 @@ export default function FinancePage() {
                   <Cell className="text-[13px] text-ink-soft">{b.helper}</Cell>
                   <Cell className="tabular text-[13px]">{rupees(b.pricing?.servicesAmount)}</Cell>
                   <Cell className="tabular text-[13px] text-ink-soft">{rupees(b.pricing?.platformFee)}</Cell>
-                  <Cell className="tabular text-[13px] text-ink-soft">{rupees(b.pricing?.gst)}</Cell>
                   <Cell className="tabular text-[13px] text-amber-ink">{rupees(b.pricing?.helperCommission)}</Cell>
                   <Cell className="tabular text-[13px] text-forest-700">{rupees(b.pricing?.helperPayout)}</Cell>
                   <Cell className="tabular whitespace-nowrap font-semibold">{rupees(b.pricing?.total)}</Cell>

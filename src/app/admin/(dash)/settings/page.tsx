@@ -44,8 +44,6 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
     keys: [
       { key: "platform_fee_percent", label: "Customer service fee", suffix: "%" },
       { key: "helper_commission_percent", label: "Helper commission", suffix: "%" },
-      { key: "gst_percent", label: "GST", suffix: "%" },
-      { key: "surcharge_flat", label: "Flat surcharge", suffix: "₹" },
       { key: "currency", label: "Currency", type: "text", help: "ISO code used on every bill and ledger entry." },
     ],
   },

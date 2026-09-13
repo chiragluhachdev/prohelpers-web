@@ -26,8 +26,8 @@ type BookingDetail = {
     scheduledAt: string; scheduledDate: string; scheduledTime: string; durationMins: number;
     instructions?: string; paymentStatus: string; paymentMode: string;
     pricing: {
-      servicesAmount: number; platformFee: number; platformFeePercent: number; surcharge: number;
-      discount: number; promoCode?: string; gst: number; gstPercent: number; total: number;
+      servicesAmount: number; platformFee: number; platformFeePercent: number;
+      discount: number; promoCode?: string; total: number;
       helperCommission: number; helperCommissionPercent: number; helperPayout: number; currency?: string;
     };
     helper: Person; customer: Person;
@@ -220,9 +220,7 @@ export default function BookingDetailPage() {
             <dl>
               {task.services.map((s) => <Detail key={s.code} label={s.name} value={money(s.amount)} mono />)}
               <Detail label={`Platform fee (${p.platformFeePercent ?? 0}%)`} value={money(p.platformFee)} mono />
-              {p.surcharge > 0 && <Detail label="Surcharge" value={money(p.surcharge)} mono />}
               {p.discount > 0 && <Detail label={`Discount${p.promoCode ? ` · ${p.promoCode}` : ""}`} value={`− ${money(p.discount)}`} mono />}
-              <Detail label={`GST (${p.gstPercent ?? 0}%)`} value={money(p.gst)} mono />
             </dl>
             <div className="mt-2 flex items-center justify-between border-t border-line pt-3">
               <span className="font-semibold text-ink">Customer pays</span>
