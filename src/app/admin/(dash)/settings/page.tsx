@@ -17,13 +17,17 @@ type SettingField = {
   suffix?: string;
   type?: "number" | "text" | "boolean";
   help?: string;
+  /** Stored value ÷ scale is what the admin edits — seconds shown as minutes, say. */
+  scale?: number;
+  /** Only relevant when location matching is on. */
+  locationOnly?: boolean;
 };
 
 /** Grouped so the page reads like a policy document, not a key/value dump. */
 const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
   {
     title: "Matching",
-    blurb: "Who gets alerted for a new booking, how far the search reaches, and how long a helper has to answer.",
+    blurb: "How a booking finds its helper. The search stays open for a set time: available helpers are alerted as soon as they can take it, and anyone who has not answered is reminded until they accept, decline, or the search closes.",
     keys: [
       {
         key: "match_ignore_location",
@@ -31,11 +35,25 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
         type: "boolean",
         help: "On: a booking goes to every available helper. Off: only helpers who cover that society are alerted.",
       },
-      { key: "search_radius_km", label: "Initial search radius", suffix: "km" },
-      { key: "radius_step_km", label: "Widen radius each round by", suffix: "km" },
-      { key: "max_dispatch_rounds", label: "Maximum rounds", suffix: "rounds" },
-      { key: "dispatch_batch_size", label: "Helpers alerted per round", suffix: "helpers" },
-      { key: "accept_window_seconds", label: "Accept window", suffix: "seconds" },
+      {
+        key: "search_duration_seconds",
+        label: "Keep searching for",
+        suffix: "minutes — then it closes as no helper available",
+        scale: 60,
+      },
+      {
+        key: "renotify_interval_seconds",
+        label: "Remind unanswered helpers every",
+        suffix: "seconds — until they accept or decline",
+      },
+      {
+        key: "accept_window_seconds",
+        label: "Each alert rings for",
+        suffix: "seconds — never longer than the reminder gap",
+      },
+      { key: "search_radius_km", label: "Starting radius", suffix: "km", locationOnly: true },
+      { key: "radius_step_km", label: "Widen by, each reminder", suffix: "km", locationOnly: true },
+      { key: "dispatch_batch_size", label: "New helpers alerted at a time", suffix: "nearest first", locationOnly: true },
     ],
   },
   {
@@ -65,6 +83,37 @@ type AuditLog = {
 };
 
 const toBool = (v: unknown) => v === true || v === "true" || v === 1 || v === "1";
+
+/**
+ * The matching settings read back as one sentence, so an admin can see what a
+ * helper will actually experience before saving — the numbers interact, and a
+ * ring longer than the reminder gap is quietly capped by the server.
+ */
+function MatchingSummary({ draft }: { draft: Settings }) {
+  const duration = Number(draft.search_duration_seconds) || 0;
+  const interval = Number(draft.renotify_interval_seconds) || 0;
+  const ringSet = Number(draft.accept_window_seconds) || 0;
+  if (!duration || !interval || !ringSet) return null;
+
+  const ring = Math.min(ringSet, interval);
+  const alerts = Math.max(1, Math.floor((duration - Math.min(15, ring)) / interval) + 1);
+  const fmt = (secs: number) =>
+    secs >= 60 && secs % 60 === 0 ? `${secs / 60} min` : secs >= 60 ? `${Math.floor(secs / 60)} min ${secs % 60} s` : `${secs} s`;
+
+  return (
+    <div className="mb-4 rounded-[10px] border border-forest-100 bg-forest-50 px-4 py-3 text-[13px] leading-relaxed text-forest-800">
+      A booking searches for <b>{fmt(duration)}</b>. Each available helper hears it ring for{" "}
+      <b>{fmt(ring)}</b>, and if they have not answered, again every <b>{fmt(interval)}</b> — up to{" "}
+      <b>{alerts} alert{alerts === 1 ? "" : "s"}</b> before the search closes. Helpers who come online during
+      the search are alerted within seconds.
+      {ringSet > interval && (
+        <span className="mt-1 block text-amber-ink">
+          The ring is longer than the reminder gap, so it will be cut to {fmt(interval)}.
+        </span>
+      )}
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { data, error, loading, reload } = useApi<{ settings: Settings }>("/api/admin/settings");
@@ -128,8 +177,11 @@ export default function SettingsPage() {
           <Card key={group.title}>
             <SectionTitle title={group.title} />
             <p className="-mt-1 mb-4 text-[13px] text-ink-muted">{group.blurb}</p>
+            {group.title === "Matching" && <MatchingSummary draft={draft} />}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {group.keys.map(({ key, label, suffix, type, help }) =>
+              {group.keys.map(({ key, label, suffix, type, help, scale, locationOnly }) =>
+                // Distance settings do nothing while every helper is alerted.
+                locationOnly && toBool(draft.match_ignore_location) ? null :
                 type === "boolean" ? (
                   <div key={key} className="sm:col-span-2 lg:col-span-3">
                     <button
@@ -158,8 +210,18 @@ export default function SettingsPage() {
                   <Field key={key} label={label} hint={suffix ?? help}>
                     <Input
                       type={type === "text" ? "text" : "number"}
-                      value={String(draft[key] ?? "")}
-                      onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+                      min={type === "text" ? undefined : scale ? 1 : 0}
+                      value={
+                        scale && draft[key] !== "" && draft[key] !== undefined
+                          ? String(Number(draft[key]) / scale)
+                          : String(draft[key] ?? "")
+                      }
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          [key]: scale && e.target.value !== "" ? String(Number(e.target.value) * scale) : e.target.value,
+                        }))
+                      }
                     />
                   </Field>
                 ),

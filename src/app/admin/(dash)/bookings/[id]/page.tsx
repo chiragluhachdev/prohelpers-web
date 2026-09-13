@@ -190,10 +190,13 @@ export default function BookingDetailPage() {
             {requests.length === 0 ? (
               <EmptyState title="No helpers were alerted" body="Nobody matched the service, society and time." />
             ) : (
-              <Table head={["Round", "Helper", "Distance", "Sent", "Window closed", "Responded", "Outcome"]}>
+              <Table head={["Alert", "Helper", "Distance", "Sent", "Stopped ringing", "Responded", "Outcome"]}>
                 {requests.map((r) => (
                   <Row key={r.id}>
-                    <Cell className="tabular text-ink-muted">{r.round}</Cell>
+                    {/* Which alert this was for that helper: 1st, or a reminder. */}
+                    <Cell className="tabular whitespace-nowrap text-ink-muted">
+                      {r.round === 1 ? "1st" : `Reminder ${r.round - 1}`}
+                    </Cell>
                     <Cell>
                       {r.helper ? (
                         <Link href={`/admin/helpers/${r.helper.id}`} className="font-medium text-forest-700 hover:underline">
