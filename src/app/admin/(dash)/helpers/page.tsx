@@ -17,6 +17,7 @@ type Helper = {
   accountStatus: string; approvalStatus: string; kycStatus: string;
   services: string[]; serviceArea?: { label?: string; radiusKm?: number };
   isOnline: boolean; rating: number; ratingCount: number; completedJobs: number;
+  jobsShown?: number; jobsLabel?: string;
   submittedAt?: string; createdAt: string;
 };
 
@@ -101,7 +102,14 @@ function HelpersView() {
                     <span className="block text-xs text-ink-muted">{h.serviceArea.radiusKm} km radius</span>
                   ) : null}
                 </Cell>
-                <Cell className="tabular">{h.completedJobs}</Cell>
+                <Cell className="tabular whitespace-nowrap">
+                  {h.completedJobs}
+                  {h.jobsLabel && h.jobsLabel !== String(h.completedJobs) && (
+                    <span className="ml-1.5 text-[12px] text-ink-muted" title="What customers see">
+                      · shows {h.jobsLabel}
+                    </span>
+                  )}
+                </Cell>
                 <Cell className="tabular whitespace-nowrap">
                   {h.ratingCount ? `${h.rating.toFixed(1)} ★` : <span className="text-ink-muted">—</span>}
                 </Cell>

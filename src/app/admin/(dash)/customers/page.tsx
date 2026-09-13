@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import { api } from "@/lib/api";
 import { relative, rupees } from "@/lib/format";
@@ -16,6 +17,7 @@ type Customer = {
 };
 
 export default function CustomersPage() {
+  const router = useRouter();
   const [q, setQ] = useState("");
   const { data, error, loading, reload } = useApi<{ customers: Customer[] }>(
     `/api/admin/customers?${new URLSearchParams(q.trim() ? { q: q.trim() } : {})}`,
@@ -70,7 +72,7 @@ export default function CustomersPage() {
         ) : (
           <Table head={["Customer", "Phone", "Bookings", "Spend", "Status", "Joined", ""]}>
             {data.customers.map((c) => (
-              <Row key={c.id}>
+              <Row key={c.id} onClick={() => router.push(`/admin/customers/${c.id}`)}>
                 <Cell>
                   <div className="flex items-center gap-3">
                     <Avatar name={c.name} src={c.photoUrl} />

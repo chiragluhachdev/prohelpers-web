@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import { dateTime, relative, rupees, titleCase } from "@/lib/format";
 import {
-  Avatar, Badge, Button, Card, Cell, EmptyState, ErrorNote, Field,
+  Avatar, Badge, Button, Card, Cell, EmptyState, ErrorNote, Field, Input,
   KeyValue, Modal, PageHeader, Row, SectionTitle, Spinner, StatusBadge,
   Table, Textarea,
 } from "@/components/ui";
@@ -22,6 +22,7 @@ type Detail = {
   helper: {
     id: string; name: string; phone: string; email?: string; photoUrl?: string;
     accountStatus: string; blockReason?: string; createdAt: string;
+    previousPhones?: { phone: string; changedAt: string }[];
   };
   profile: {
     gender?: string; experienceYears?: number; bio?: string;
@@ -30,13 +31,27 @@ type Detail = {
     services: string[]; societies?: string[];
     serviceArea?: { label?: string; lat?: number; lng?: number; radiusKm?: number };
     isOnline: boolean; dnd: boolean; ratingAvg: number; ratingCount: number; completedJobs: number;
+    jobsShown?: number;
     paymentDetails?: { method?: "UPI" | "BANK"; upiId?: string; accountNo?: string; ifsc?: string };
   } | null;
   documents: Doc[];
   tasks: { id: string; code: string; status: string; statusLabel: string; services: string[]; total: number; scheduledAt: string }[];
-  ratings: { _id: string; stars: number; comment?: string; createdAt: string }[];
+  ratings: {
+    _id: string; stars: number; comment?: string; createdAt: string;
+    fromUserId?: { _id: string; name: string; role: string };
+    taskId?: { _id: string; shortId: string };
+  }[];
   earnings: Record<string, number>;
 };
+
+const DEFAULT_JOBS_SHOWN = 50;
+
+/** Same rule as the API: "N+" until the real count passes it; 0 shows the real count. */
+function jobsLabel(p: { completedJobs?: number; jobsShown?: number }) {
+  const real = p.completedJobs ?? 0;
+  const shown = p.jobsShown ?? DEFAULT_JOBS_SHOWN;
+  return real >= shown ? String(real) : `${shown}+`;
+}
 
 export default function HelperDetailPage() {
   const router = useRouter();
@@ -44,6 +59,9 @@ export default function HelperDetailPage() {
   const { data, error, loading, reload } = useApi<Detail>(`/api/admin/helpers/${id}`);
 
   const [busy, setBusy] = useState("");
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [statsDraft, setStatsDraft] = useState({ experienceYears: "", jobsShown: "" });
+  const [statsError, setStatsError] = useState("");
   const [actionError, setActionError] = useState("");
   const [rejectOpen, setRejectOpen] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
@@ -132,6 +150,16 @@ export default function HelperDetailPage() {
             </div>
             <KeyValue
               items={[
+                ["Phone", helper.phone],
+                ["Previous numbers", (() => {
+                  const past = helper.previousPhones ?? [];
+                  if (!past.length) return "—";
+                  return past
+                    .slice()
+                    .reverse()
+                    .map((p) => `${p.phone} (until ${dateTime(p.changedAt)})`)
+                    .join(", ");
+                })()],
                 ["Name on Aadhaar", profile.aadhaarName],
                 ["Aadhaar number", profile.aadhaarLast4 ? `XXXX XXXX ${profile.aadhaarLast4}` : "—"],
                 ["Method", profile.kycMethod ? titleCase(profile.kycMethod) : "—"],
@@ -223,6 +251,49 @@ export default function HelperDetailPage() {
               </Table>
             )}
           </Card>
+
+          {/* --------------------------------------------------- ratings */}
+          <Card padded={false}>
+            <div className="px-5 pt-5">
+              <SectionTitle title="Ratings & Reviews" />
+            </div>
+            {data.ratings.length === 0 ? (
+              <EmptyState title="No ratings yet" body="This helper has not received any reviews." />
+            ) : (
+              <div className="divide-y divide-line">
+                {data.ratings.map((r) => (
+                  <div key={r._id} className="p-5">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-0.5 rounded-[6px] bg-amber-bg px-2 py-0.5 text-[13px] font-semibold text-amber-ink">
+                          {r.stars} ★
+                        </span>
+                        <span className="text-[13px] text-ink-muted">{dateTime(r.createdAt)}</span>
+                      </div>
+                      {r.fromUserId && (
+                        <Link
+                          href={`/admin/customers/${r.fromUserId._id}`}
+                          className="text-[13px] font-medium text-forest-600 hover:underline"
+                        >
+                          From: {r.fromUserId.name || "Customer"}
+                        </Link>
+                      )}
+                    </div>
+                    {r.comment ? (
+                      <p className="text-[14px] text-ink-soft">{r.comment}</p>
+                    ) : (
+                      <p className="text-[14px] italic text-ink-muted">No comment left</p>
+                    )}
+                    {r.taskId && (
+                      <Link href={`/admin/bookings/${r.taskId._id}`} className="mt-2 inline-block text-[12px] text-ink-muted hover:text-ink">
+                        Booking: #{r.taskId.shortId}
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </div>
 
         {/* ------------------------------------------------------ sidebar */}
@@ -244,11 +315,31 @@ export default function HelperDetailPage() {
             <KeyValue
               items={[
                 ["Experience", profile.experienceYears ? `${profile.experienceYears} years` : "—"],
-                ["Jobs completed", profile.completedJobs],
+                [
+                  "Jobs shown to customers",
+                  <span key="jobs" className="tabular font-semibold">{jobsLabel(profile)}</span>,
+                ],
+                ["Completed on Pro Helper", <span key="real" className="tabular">{profile.completedJobs}</span>],
                 ["Gender", titleCase(profile.gender)],
                 ["Account", <StatusBadge key="s" status={helper.accountStatus} />],
               ]}
             />
+            <div className="mt-4 flex justify-end border-t border-line pt-4">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setStatsDraft({
+                    experienceYears: String(profile.experienceYears ?? 0),
+                    jobsShown: String(profile.jobsShown ?? DEFAULT_JOBS_SHOWN),
+                  });
+                  setStatsError("");
+                  setStatsOpen(true);
+                }}
+              >
+                Edit experience &amp; jobs
+              </Button>
+            </div>
             {profile.bio && <p className="mt-4 border-t border-line pt-4 text-sm leading-relaxed text-ink-soft">{profile.bio}</p>}
           </Card>
 
@@ -334,6 +425,79 @@ export default function HelperDetailPage() {
       </div>
 
       {/* -------------------------------------------------------- modals */}
+      <Modal
+        open={statsOpen}
+        title="Experience and jobs"
+        subtitle="What customers see on this helper's card when they are assigned. The real completed count is kept separately and never changes here."
+        onClose={() => setStatsOpen(false)}
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Years of experience" hint="0 – 60. Half-years are fine.">
+            <Input
+              type="number"
+              min={0}
+              max={60}
+              step={0.5}
+              value={statsDraft.experienceYears}
+              onChange={(e) => setStatsDraft((d) => ({ ...d, experienceYears: e.target.value }))}
+            />
+          </Field>
+          <Field label="Jobs shown to customers" hint="Shows as “N+” until real jobs pass it. 0 shows the real count.">
+            <Input
+              type="number"
+              min={0}
+              step={1}
+              value={statsDraft.jobsShown}
+              onChange={(e) => setStatsDraft((d) => ({ ...d, jobsShown: e.target.value }))}
+            />
+          </Field>
+        </div>
+
+        <div className="mt-3 rounded-[10px] bg-sunken px-3 py-2.5 text-[13px] text-ink-soft">
+          Customers will see{" "}
+          <span className="font-semibold text-ink">
+            {jobsLabel({ completedJobs: profile.completedJobs, jobsShown: Number(statsDraft.jobsShown) || 0 })} jobs
+          </span>
+          {Number(statsDraft.experienceYears) > 0 && (
+            <>
+              {" "}and{" "}
+              <span className="font-semibold text-ink">{Number(statsDraft.experienceYears)} yrs experience</span>
+            </>
+          )}
+          . Real completed on Pro Helper: <span className="tabular">{profile.completedJobs}</span>.
+        </div>
+
+        {statsError && <div className="mt-3"><ErrorNote>{statsError}</ErrorNote></div>}
+
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setStatsOpen(false)}>Cancel</Button>
+          <Button
+            disabled={busy === "stats"}
+            onClick={async () => {
+              setBusy("stats");
+              setStatsError("");
+              try {
+                await api(`/api/admin/helpers/${id}/profile`, {
+                  method: "PATCH",
+                  body: {
+                    experienceYears: Number(statsDraft.experienceYears),
+                    jobsShown: Number(statsDraft.jobsShown),
+                  },
+                });
+                await reload();
+                setStatsOpen(false);
+              } catch (err) {
+                setStatsError(err instanceof Error ? err.message : "Could not save.");
+              } finally {
+                setBusy("");
+              }
+            }}
+          >
+            {busy === "stats" ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </Modal>
+
       <Modal open={rejectOpen} title="Reject this helper" onClose={() => setRejectOpen(false)}>
         <div className="grid gap-4">
           <Field label="Reason" hint="The helper sees this, so say what they need to fix.">

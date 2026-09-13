@@ -31,6 +31,10 @@ type Service = {
   icon: string;
   basePrice: number;
   inclusions?: string[];
+  nameHi?: string;
+  descriptionHi?: string;
+  durationLabelHi?: string;
+  inclusionsHi?: string[];
   durationLabel: string;
   defaultDurationMins: number;
   sortOrder: number;
@@ -167,7 +171,13 @@ export default function ServicesPage() {
                       {s.icon}
                     </span>
                     <div className="min-w-0">
-                      <p className="font-medium">{s.name}</p>
+                      <p className="font-medium">
+                        {s.name}
+                        {!s.nameHi && (
+                          <span className="ml-2 align-middle text-[11px] font-medium text-amber-ink">No Hindi</span>
+                        )}
+                      </p>
+                      {s.nameHi && <p lang="hi" className="text-[12px] text-ink-soft">{s.nameHi}</p>}
                       <p className="line-clamp-1 text-xs text-ink-muted">{s.description || s.category}</p>
                     </div>
                   </div>
@@ -474,6 +484,50 @@ export default function ServicesPage() {
                 onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}
               />
             </Field>
+          </div>
+
+          {/* Hindi copy. Anything left empty falls back to the English above. */}
+          <div className="rounded-[10px] border border-line bg-sunken p-3">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[13px] font-semibold text-ink">हिंदी · Hindi</p>
+              <span className="text-[12px] text-ink-muted">Shown when the app is set to Hindi</span>
+            </div>
+            <div className="grid gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Name in Hindi" hint={draft.name ? `English: ${draft.name}` : undefined}>
+                  <Input
+                    lang="hi"
+                    value={draft.nameHi ?? ""}
+                    placeholder="जैसे: किचन की सफ़ाई"
+                    onChange={(e) => setDraft((d) => ({ ...d, nameHi: e.target.value }))}
+                  />
+                </Field>
+                <Field label="Duration in Hindi" hint={draft.durationLabel ? `English: ${draft.durationLabel}` : undefined}>
+                  <Input
+                    lang="hi"
+                    value={draft.durationLabelHi ?? ""}
+                    placeholder="जैसे: 1 - 2 घंटे"
+                    onChange={(e) => setDraft((d) => ({ ...d, durationLabelHi: e.target.value }))}
+                  />
+                </Field>
+              </div>
+              <Field label="Description in Hindi">
+                <Textarea
+                  lang="hi"
+                  rows={2}
+                  value={draft.descriptionHi ?? ""}
+                  onChange={(e) => setDraft((d) => ({ ...d, descriptionHi: e.target.value }))}
+                />
+              </Field>
+              <Field label="What's included, in Hindi" hint="One line per item, in the same order as the English list.">
+                <Textarea
+                  lang="hi"
+                  rows={5}
+                  value={(draft.inclusionsHi ?? []).join("\n")}
+                  onChange={(e) => setDraft((d) => ({ ...d, inclusionsHi: e.target.value.split("\n") }))}
+                />
+              </Field>
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 border-t border-line pt-4">
