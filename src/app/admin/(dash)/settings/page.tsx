@@ -57,6 +57,14 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
     ],
   },
   {
+    title: "Scheduled Bookings",
+    blurb: "Bookings scheduled hours or days away alert available helpers in spread-out waves until the slot.",
+    keys: [
+      { key: "scheduled_notify_waves", label: "Search waves", suffix: "waves", help: "How many times to alert available helpers before giving up (max 12)." },
+      { key: "scheduled_close_minutes_before", label: "Close search", suffix: "minutes before slot", help: "So the assigned helper has time to prepare and travel." },
+    ],
+  },
+  {
     title: "Money",
     blurb: "Applies to new bookings only — past bookings keep the rates they were created with.",
     keys: [
