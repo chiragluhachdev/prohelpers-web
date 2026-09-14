@@ -27,7 +27,7 @@ type SettingField = {
 const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
   {
     title: "Matching",
-    blurb: "How a booking finds its helper. The search stays open for a set time: available helpers are alerted as soon as they can take it, and anyone who has not answered is reminded until they accept, decline, or the search closes.",
+    blurb: "How an instant booking finds its helper. The search stays open for a set time: available helpers are alerted as soon as they can take it, and anyone who has not answered is reminded until they accept, decline, or the search closes.",
     keys: [
       {
         key: "match_ignore_location",
@@ -57,11 +57,19 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
     ],
   },
   {
-    title: "Scheduled Bookings",
-    blurb: "Bookings scheduled hours or days away alert available helpers in spread-out waves until the slot.",
+    title: "Bookings for later",
+    blurb: "A booking for a later slot has no countdown. Instead, every available helper is alerted in a few waves spread evenly between the booking and the slot — the customer just sees that a helper is being lined up.",
     keys: [
-      { key: "scheduled_notify_waves", label: "Search waves", suffix: "waves", help: "How many times to alert available helpers before giving up (max 12)." },
-      { key: "scheduled_close_minutes_before", label: "Close search", suffix: "minutes before slot", help: "So the assigned helper has time to prepare and travel." },
+      {
+        key: "scheduled_notify_waves",
+        label: "Alert helpers in",
+        suffix: "waves — spread evenly until the search closes (1–12)",
+      },
+      {
+        key: "scheduled_close_minutes_before",
+        label: "Stop searching",
+        suffix: "minutes before the slot — then it closes as no helper available",
+      },
     ],
   },
   {
@@ -119,6 +127,48 @@ function MatchingSummary({ draft }: { draft: Settings }) {
           The ring is longer than the reminder gap, so it will be cut to {fmt(interval)}.
         </span>
       )}
+    </div>
+  );
+}
+
+/**
+ * What a booking for later actually does with these numbers, worked through
+ * for a slot three hours out — the waves are relative, so an example reads
+ * better than a formula.
+ */
+function ScheduledSummary({ draft }: { draft: Settings }) {
+  const waves = Math.min(12, Math.max(1, Math.round(Number(draft.scheduled_notify_waves) || 0)));
+  const closeBefore = Math.max(0, Number(draft.scheduled_close_minutes_before) || 0);
+  const duration = Number(draft.search_duration_seconds) || 0;
+  const interval = Number(draft.renotify_interval_seconds) || 0;
+  if (!Number(draft.scheduled_notify_waves)) return null;
+
+  const exampleMinutes = 180;
+  const window = exampleMinutes - closeBefore;
+  // A slot too close for its waves is searched the instant way (see backend/src/lib/searchPlan.js).
+  const minWindowMinutes = Math.max(duration, waves * interval) / 60;
+  const gap = window / waves;
+  const clock = (mins: number) => {
+    const h = Math.floor(mins / 60);
+    const m = Math.round(mins % 60);
+    return h ? `${h} h${m ? ` ${m} min` : ""}` : `${m} min`;
+  };
+
+  return (
+    <div className="mb-4 rounded-[10px] border border-forest-100 bg-forest-50 px-4 py-3 text-[13px] leading-relaxed text-forest-800">
+      {window >= minWindowMinutes ? (
+        <>
+          Booked 3 hours ahead, the search runs for <b>{clock(window)}</b> and alerts every available helper{" "}
+          <b>{waves} time{waves === 1 ? "" : "s"}</b>
+          {waves > 1 && <> — once straight away, then about every <b>{clock(gap)}</b></>}. Helpers who have not
+          answered hear it again in the next wave; nobody is reminded in between.
+        </>
+      ) : (
+        <>With these numbers a booking 3 hours ahead is too close for waves, so it is searched like an instant booking.</>
+      )}
+      <span className="mt-1 block text-forest-700">
+        Slots closer than {clock(Math.max(minWindowMinutes, 1) + closeBefore)} away always search like an instant booking.
+      </span>
     </div>
   );
 }
@@ -186,6 +236,7 @@ export default function SettingsPage() {
             <SectionTitle title={group.title} />
             <p className="-mt-1 mb-4 text-[13px] text-ink-muted">{group.blurb}</p>
             {group.title === "Matching" && <MatchingSummary draft={draft} />}
+            {group.title === "Bookings for later" && <ScheduledSummary draft={draft} />}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {group.keys.map(({ key, label, suffix, type, help, scale, locationOnly }) =>
                 // Distance settings do nothing while every helper is alerted.

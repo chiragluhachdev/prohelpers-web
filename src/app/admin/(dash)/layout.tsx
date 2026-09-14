@@ -11,6 +11,7 @@ const NAV = [
   { href: "/admin/dashboard", label: "Dashboard", icon: "M3 12h7V3H3v9Zm0 9h7v-7H3v7Zm11 0h7V12h-7v9Zm0-18v7h7V3h-7Z" },
   { href: "/admin/helpers", label: "Helpers", icon: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" },
   { href: "/admin/customers", label: "Customers", icon: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" },
+  { href: "/admin/categories", label: "Categories", icon: "M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6zm4 5V7h8v4H8zm0 6v-4h8v4H8z" },
   { href: "/admin/services", label: "Services", icon: "M20.6 8.4a5 5 0 0 1-6.6 6.6l-6 6a2.1 2.1 0 0 1-3-3l6-6a5 5 0 0 1 6.6-6.6l-3 3 .5 3 3 .5 3-3Z" },
   { href: "/admin/finance", label: "Finance", icon: "M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" },
   { href: "/admin/bookings", label: "Bookings", icon: "M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" },
