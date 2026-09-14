@@ -122,7 +122,7 @@ function RedemptionsView() {
                   </Cell>
                 )}
                 {isVisible("amount") && <Cell className="tabular font-medium">{rupees(r.amount)}</Cell>}
-                {isVisible("details") && <Cell className="text-sm font-mono max-w-[200px] truncate" title={r.paymentDetails}>{r.paymentDetails}</Cell>}
+                {isVisible("details") && <Cell><span className="block text-sm font-mono max-w-[200px] truncate" title={r.paymentDetails}>{r.paymentDetails}</span></Cell>}
                 {isVisible("status") && <Cell><StatusBadge status={r.status} /></Cell>}
                 <Cell className="text-right">
                   {r.status === "PROCESSING" && (
