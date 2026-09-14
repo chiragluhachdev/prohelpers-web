@@ -17,6 +17,10 @@ type Detail = {
     id: string; name: string; phone: string; email?: string; photoUrl?: string;
     previousPhones?: { phone: string; changedAt: string }[];
     accountStatus: string; blockReason?: string; createdAt: string;
+    referral?: {
+      code: string; balance: number; referrals: number;
+      referredBy: { id: string; name: string; phone: string; role: string } | null;
+    };
   };
   addresses: { _id: string; label: string; line1: string; line2?: string; city: string; state: string; pin: string }[];
   tasks: { id: string; code: string; status: string; statusLabel: string; services: string[]; total: number; scheduledAt: string }[];
@@ -97,8 +101,11 @@ export default function CustomerDetailPage() {
         <div className="grid gap-5">
           {/* --------------------------------------------------- history */}
           <Card padded={false}>
-            <div className="px-5 pt-5">
+            <div className="flex items-center justify-between px-5 pt-5">
               <SectionTitle title="Recent bookings" />
+              <Link href={`/admin/bookings?customer=${id}`} className="-mt-3 text-[13px] font-medium text-forest-700 hover:underline">
+                See all & filter →
+              </Link>
             </div>
             {data.tasks.length === 0 ? (
               <EmptyState title="No bookings yet" />
@@ -186,6 +193,13 @@ export default function CustomerDetailPage() {
                 })()],
                 ["Email", customer.email || "—"],
                 ["Joined", dateTime(customer.createdAt)],
+                ["Referral code", customer.referral ? <span key="rc" className="font-mono font-semibold tracking-[0.12em]">{customer.referral.code}</span> : "—"],
+                ["Referral balance", customer.referral ? `${rupees(customer.referral.balance)} · ${customer.referral.referrals} referral${customer.referral.referrals === 1 ? "" : "s"}` : "—"],
+                ["Joined with code of", customer.referral?.referredBy ? (
+                  <Link key="rb" href={`/admin/${customer.referral.referredBy.role === "helper" ? "helpers" : "customers"}/${customer.referral.referredBy.id}`} className="font-medium text-forest-700 hover:underline">
+                    {customer.referral.referredBy.name || customer.referral.referredBy.phone}
+                  </Link>
+                ) : "—"],
               ]}
             />
           </Card>

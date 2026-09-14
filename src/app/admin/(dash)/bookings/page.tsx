@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import { dateTime, relative, rupees } from "@/lib/format";
+import { apiQuery, useFilters } from "@/lib/useFilters";
 import {
-  Card, Cell, EmptyState, ErrorNote, Input, PageHeader,
+  Card, Cell, EmptyState, ErrorNote, PageHeader,
   Row, SkeletonRows, Spinner, StatusBadge, Table, Tabs,
 } from "@/components/ui";
+import {
+  DateFilter, FilterBar, Pagination, SearchFilter, SelectFilter, type FilterOptions,
+} from "@/components/filters";
 
 type Booking = {
   id: string; code: string; status: string; statusLabel: string; services: string[];
@@ -15,49 +19,128 @@ type Booking = {
   customer: { name: string } | null; helper: { name: string } | null;
 };
 
-const FILTERS = [
-  { key: "ALL", label: "All" },
-  { key: "SEARCHING", label: "Searching" },
-  { key: "ACCEPTED", label: "Confirmed" },
-  { key: "IN_PROGRESS", label: "In progress" },
-  { key: "COMPLETED", label: "Completed" },
-  { key: "CANCELLED", label: "Cancelled" },
-  { key: "NO_HELPER_AVAILABLE", label: "No helper" },
-] as const;
+type Payload = {
+  bookings: Booking[]; counts: Record<string, number>;
+  total: number; page: number; pages: number;
+};
 
-type FilterKey = (typeof FILTERS)[number]["key"];
+/** Status tabs group the statuses an admin thinks of as one stage. */
+const STAGES = [
+  { key: "", label: "All", statuses: [] as string[] },
+  { key: "CREATED,SEARCHING", label: "Searching", statuses: ["CREATED", "SEARCHING"] },
+  { key: "ACCEPTED", label: "Confirmed", statuses: ["ACCEPTED"] },
+  { key: "IN_PROGRESS,COMPLETION_PENDING", label: "In progress", statuses: ["IN_PROGRESS", "COMPLETION_PENDING"] },
+  { key: "COMPLETED,SETTLED", label: "Completed", statuses: ["COMPLETED", "SETTLED"] },
+  { key: "NO_HELPER_AVAILABLE", label: "No helper", statuses: ["NO_HELPER_AVAILABLE"] },
+  { key: "CANCELLED,EXPIRED", label: "Cancelled", statuses: ["CANCELLED", "EXPIRED"] },
+];
 
-export default function BookingsPage() {
+const DEFAULTS = {
+  status: "", q: "", type: "", service: "", society: "", payment: "", customer: "", helper: "",
+  dateField: "created", range: "", from: "", to: "", sort: "newest", page: "1",
+};
+
+function BookingsView() {
   const router = useRouter();
-  const [status, setStatus] = useState<FilterKey>("ALL");
-  const [q, setQ] = useState("");
+  const { values: f, set, reset, activeCount } = useFilters(DEFAULTS);
+  const options = useApi<FilterOptions>("/api/admin/filter-options");
 
-  const query = new URLSearchParams();
-  if (status !== "ALL") query.set("status", status);
-  if (q.trim()) query.set("q", q.trim());
-
+  const query = apiQuery({ ...f, limit: "50" });
   // Live view — bookings change state on their own while the admin watches.
-  const { data, error, loading } = useApi<{ bookings: Booking[]; counts: Record<string, number> }>(
-    `/api/admin/bookings?${query}`,
-    { pollMs: 8000 },
-  );
+  const { data, error, loading } = useApi<Payload>(`/api/admin/bookings?${query}`, { pollMs: 8000 });
+
+  const countFor = (statuses: string[]) =>
+    statuses.length ? statuses.reduce((sum, s) => sum + (data?.counts?.[s] ?? 0), 0) : undefined;
 
   return (
     <>
       <PageHeader title="Bookings" subtitle="Every request, from creation through to completion." />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-3">
         <Tabs
-          active={status}
-          onChange={setStatus}
-          tabs={FILTERS.map((f) => ({
-            key: f.key,
-            label: f.label,
-            count: f.key === "ALL" ? undefined : data?.counts?.[f.key],
-          }))}
+          active={f.status}
+          onChange={(status) => set({ status })}
+          tabs={STAGES.map((s) => ({ key: s.key, label: s.label, count: countFor(s.statuses) }))}
         />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search booking code…" className="max-w-[220px]" />
       </div>
+
+      <FilterBar
+        activeCount={activeCount}
+        onReset={reset}
+        summary={data ? `${data.total} booking${data.total === 1 ? "" : "s"}` : undefined}
+      >
+        {(f.customer || f.helper) && (
+          <button
+            type="button"
+            onClick={() => set({ customer: "", helper: "" })}
+            className="inline-flex h-9 items-center gap-1.5 rounded-[9px] border border-forest-300 bg-forest-50 px-2.5 text-[13px] font-medium text-forest-800"
+            title="Show everyone's bookings"
+          >
+            {f.customer ? "One customer's bookings" : "One helper's jobs"}
+            <span aria-hidden className="text-forest-600">×</span>
+          </button>
+        )}
+        <SearchFilter value={f.q} onChange={(q) => set({ q })} placeholder="Code, customer or helper…" />
+        <SelectFilter
+          label="Type"
+          value={f.type}
+          onChange={(type) => set({ type })}
+          options={[
+            { value: "", label: "Any" },
+            { value: "instant", label: "Instant" },
+            { value: "scheduled", label: "Scheduled" },
+          ]}
+        />
+        <SelectFilter
+          label="Service"
+          value={f.service}
+          onChange={(service) => set({ service })}
+          options={[{ value: "", label: "Any" }, ...(options.data?.services ?? []).map((s) => ({ value: s.code, label: s.name }))]}
+        />
+        <SelectFilter
+          label="Society"
+          value={f.society}
+          onChange={(society) => set({ society })}
+          options={[{ value: "", label: "Any" }, ...(options.data?.societies ?? []).map((s) => ({ value: s.code, label: s.name }))]}
+        />
+        <SelectFilter
+          label="Payment"
+          value={f.payment}
+          onChange={(payment) => set({ payment })}
+          options={[
+            { value: "", label: "Any" },
+            { value: "paid", label: "Paid" },
+            { value: "awaiting", label: "Awaiting payment" },
+            { value: "online", label: "Paid online" },
+            { value: "cash", label: "Paid cash / UPI" },
+            { value: "referral", label: "Used referral balance" },
+          ]}
+        />
+        <SelectFilter
+          label="Date of"
+          value={f.dateField}
+          neutral="created"
+          onChange={(dateField) => set({ dateField })}
+          options={[
+            { value: "created", label: "Booking made" },
+            { value: "scheduled", label: "Service slot" },
+          ]}
+        />
+        <DateFilter label="When" range={f.range} from={f.from} to={f.to} onChange={set} />
+        <SelectFilter
+          label="Sort"
+          value={f.sort}
+          neutral="newest"
+          onChange={(sort) => set({ sort })}
+          options={[
+            { value: "newest", label: "Newest first" },
+            { value: "oldest", label: "Oldest first" },
+            { value: "scheduled", label: "Soonest slot" },
+            { value: "latestSlot", label: "Latest slot" },
+            { value: "value", label: "Highest value" },
+          ]}
+        />
+      </FilterBar>
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
@@ -65,7 +148,7 @@ export default function BookingsPage() {
         {loading ? (
           <SkeletonRows rows={6} cols={7} />
         ) : !data?.bookings.length ? (
-          <EmptyState title="No bookings here" body="Try a different filter." />
+          <EmptyState title="No bookings match" body={activeCount ? "Try clearing a filter." : "Bookings appear here as customers make them."} />
         ) : (
           <Table head={["Booking", "Customer", "Helper", "Scheduled", "Status", "Value", "Created"]}>
             {data.bookings.map((b) => (
@@ -92,6 +175,18 @@ export default function BookingsPage() {
           </Table>
         )}
       </Card>
+
+      {data && (
+        <Pagination page={data.page} pages={data.pages} total={data.total} noun="bookings" onPage={(p) => set({ page: String(p) })} />
+      )}
     </>
+  );
+}
+
+export default function BookingsPage() {
+  return (
+    <Suspense fallback={<Spinner label="Loading bookings" />}>
+      <BookingsView />
+    </Suspense>
   );
 }

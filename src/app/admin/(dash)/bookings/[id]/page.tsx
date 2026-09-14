@@ -24,14 +24,17 @@ type BookingDetail = {
     };
     bookingType?: "instant" | "scheduled";
     scheduledAt: string; scheduledDate: string; scheduledTime: string; durationMins: number;
-    instructions?: string; paymentStatus: string; paymentMode: string;
+    instructions?: string; paymentStatus: string; paymentMode: string | null;
+    paidAt?: string | null; paidByRole?: "customer" | "helper" | null;
+    owedByHelper: { amount: number; settled: boolean } | null;
+    payoutToHelper: { amount: number; settled: boolean } | null;
     pricing: {
       servicesAmount: number; platformFee: number; platformFeePercent: number;
-      discount: number; promoCode?: string; total: number;
+      discount: number; promoCode?: string; total: number; referralCredit?: number;
       helperCommission: number; helperCommissionPercent: number; helperPayout: number; currency?: string;
     };
     helper: Person; customer: Person;
-    createdAt: string; acceptedAt?: string; startedAt?: string; completedAt?: string;
+    createdAt: string; acceptedAt?: string; startedAt?: string; completedAt?: string; settledAt?: string;
     cancellation?: { by: string; reason: string; at: string; previousStatus?: string } | null;
     rated?: boolean;
   };
@@ -146,7 +149,6 @@ export default function BookingDetailPage() {
               <Detail label="Address" value={address || "—"} />
               <Detail label="City / PIN" value={[task.address?.city, task.address?.pincode].filter(Boolean).join(" · ") || "—"} />
               <Detail label="Instructions" value={task.instructions || "—"} />
-              <Detail label="Payment" value={`${titleCase(task.paymentMode)} · ${titleCase(task.paymentStatus)}`} />
             </dl>
 
             <div className="mt-5 border-t border-line pt-4">
@@ -224,10 +226,16 @@ export default function BookingDetailPage() {
               {task.services.map((s) => <Detail key={s.code} label={s.name} value={money(s.amount)} mono />)}
               <Detail label={`Platform fee (${p.platformFeePercent ?? 0}%)`} value={money(p.platformFee)} mono />
               {p.discount > 0 && <Detail label={`Discount${p.promoCode ? ` · ${p.promoCode}` : ""}`} value={`− ${money(p.discount)}`} mono />}
+              {(p.referralCredit ?? 0) > 0 && (
+                <>
+                  <Detail label="Booking total" value={money(p.total)} mono />
+                  <Detail label="Referral balance used (platform covers)" value={`− ${money(p.referralCredit)}`} mono />
+                </>
+              )}
             </dl>
             <div className="mt-2 flex items-center justify-between border-t border-line pt-3">
               <span className="font-semibold text-ink">Customer pays</span>
-              <span className="tabular text-base font-semibold text-ink">{money(p.total)}</span>
+              <span className="tabular text-base font-semibold text-ink">{money(p.total - (p.referralCredit ?? 0))}</span>
             </div>
 
             <div className="mt-4 border-t border-line pt-4">
@@ -244,6 +252,57 @@ export default function BookingDetailPage() {
             </p>
           </Card>
 
+          {/* ------------------------------------------------------ payment */}
+          <Card>
+            <SectionTitle title="Payment" />
+            {task.paymentStatus === "PAID" ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <Badge tone="green">{task.paymentMode === "ONLINE" ? "Paid online" : "Paid cash / UPI direct"}</Badge>
+                </div>
+                <dl className="mt-3">
+                  <Detail
+                    label="Confirmed by"
+                    value={task.paidByRole === "customer" ? "Customer, in the app" : "Helper, on receiving payment"}
+                  />
+                  <Detail label="Confirmed at" value={task.paidAt ? dateTime(task.paidAt) : "—"} />
+                </dl>
+                {task.owedByHelper && (
+                  <p className="mt-3 rounded-[9px] bg-sunken px-3 py-2 text-[12.5px] leading-relaxed text-ink-soft">
+                    Collected in cash — the helper owes the platform{" "}
+                    <span className="font-semibold text-ink">{money(task.owedByHelper.amount)}</span> for this job.{" "}
+                    {task.owedByHelper.settled ? (
+                      <span className="font-medium text-forest-700">Settled.</span>
+                    ) : (
+                      <>
+                        Still outstanding —{" "}
+                        <Link href="/admin/finance" className="font-medium text-forest-700 hover:underline">settle it from Finance</Link>.
+                      </>
+                    )}
+                  </p>
+                )}
+                {task.payoutToHelper && (
+                  <p className="mt-3 rounded-[9px] bg-sunken px-3 py-2 text-[12.5px] leading-relaxed text-ink-soft">
+                    Paid online — the platform owes the helper a payout of{" "}
+                    <span className="font-semibold text-ink">{money(task.payoutToHelper.amount)}</span>.{" "}
+                    {task.payoutToHelper.settled ? (
+                      <span className="font-medium text-forest-700">Sent.</span>
+                    ) : (
+                      <>
+                        Not sent yet —{" "}
+                        <Link href="/admin/finance" className="font-medium text-forest-700 hover:underline">send it from Finance</Link>.
+                      </>
+                    )}
+                  </p>
+                )}
+              </>
+            ) : ["COMPLETED", "SETTLED"].includes(task.status) ? (
+              <Badge tone="amber">Awaiting payment</Badge>
+            ) : (
+              <p className="text-sm text-ink-muted">Due once the job is complete.</p>
+            )}
+          </Card>
+
           <Card>
             <SectionTitle title="Timestamps" />
             <dl>
@@ -251,6 +310,7 @@ export default function BookingDetailPage() {
               <Detail label="Accepted" value={task.acceptedAt ? dateTime(task.acceptedAt) : "—"} />
               <Detail label="Started" value={task.startedAt ? dateTime(task.startedAt) : "—"} />
               <Detail label="Completed" value={task.completedAt ? dateTime(task.completedAt) : "—"} />
+              <Detail label="Settled" value={task.settledAt ? dateTime(task.settledAt) : "—"} />
             </dl>
           </Card>
 

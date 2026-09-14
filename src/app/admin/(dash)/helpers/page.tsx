@@ -1,16 +1,18 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import { relative, titleCase } from "@/lib/format";
+import { apiQuery, useFilters } from "@/lib/useFilters";
 import {
-  Avatar, Badge, Card, Cell, Dot, EmptyState, ErrorNote, Input,
+  Avatar, Badge, Card, Cell, Dot, EmptyState, ErrorNote,
   PageHeader, Row, Spinner, StatusBadge, Table, Tabs,
   SkeletonRows,
 } from "@/components/ui";
+import {
+  DateFilter, FilterBar, Pagination, SearchFilter, SelectFilter, type FilterOptions,
+} from "@/components/filters";
 
 type Helper = {
   id: string; name: string; phone: string; photoUrl?: string;
@@ -21,43 +23,103 @@ type Helper = {
   submittedAt?: string; createdAt: string;
 };
 
-type Payload = { helpers: Helper[]; counts: Record<string, number> };
+type Payload = { helpers: Helper[]; counts: Record<string, number>; total: number; page: number; pages: number };
 
-const FILTERS = ["ALL", "PENDING_VERIFICATION", "APPROVED", "REJECTED", "DRAFT"] as const;
-type Filter = (typeof FILTERS)[number];
+const STATUSES = ["", "PENDING_VERIFICATION", "APPROVED", "REJECTED", "DRAFT"] as const;
+
+const DEFAULTS = {
+  status: "", q: "", online: "", account: "", kyc: "", service: "", society: "",
+  range: "", from: "", to: "", sort: "newest", page: "1",
+};
 
 function HelpersView() {
   const router = useRouter();
-  const params = useSearchParams();
-  const [status, setStatus] = useState<Filter>((params.get("status") as Filter) || "ALL");
-  const [q, setQ] = useState("");
-
-  const query = new URLSearchParams();
-  if (status !== "ALL") query.set("status", status);
-  if (q.trim()) query.set("q", q.trim());
-  const { data, error, loading } = useApi<Payload>(`/api/admin/helpers?${query}`);
+  const { values: f, set, reset, activeCount } = useFilters(DEFAULTS);
+  const options = useApi<FilterOptions>("/api/admin/filter-options");
+  const { data, error, loading } = useApi<Payload>(`/api/admin/helpers?${apiQuery({ ...f, limit: "50" })}`);
+  const status = f.status;
 
   return (
     <>
       <PageHeader title="Helpers" subtitle="Verify identity and documents before a helper can take jobs." />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-3">
         <Tabs
-          active={status}
-          onChange={setStatus}
-          tabs={FILTERS.map((f) => ({
-            key: f,
-            label: f === "ALL" ? "All" : titleCase(f),
-            count: f === "ALL" ? undefined : data?.counts?.[f],
+          active={f.status}
+          onChange={(next) => set({ status: next })}
+          tabs={STATUSES.map((key) => ({
+            key,
+            label: key === "" ? "All" : titleCase(key),
+            count: key === "" ? undefined : data?.counts?.[key],
           }))}
         />
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search name or phone…"
-          className="max-w-[240px]"
-        />
       </div>
+
+      <FilterBar
+        activeCount={activeCount}
+        onReset={reset}
+        summary={data ? `${data.total} helper${data.total === 1 ? "" : "s"}` : undefined}
+      >
+        <SearchFilter value={f.q} onChange={(q) => set({ q })} placeholder="Name or phone…" />
+        <SelectFilter
+          label="Availability"
+          value={f.online}
+          onChange={(online) => set({ online })}
+          options={[
+            { value: "", label: "Any" },
+            { value: "online", label: "Online now" },
+            { value: "offline", label: "Offline" },
+          ]}
+        />
+        <SelectFilter
+          label="Account"
+          value={f.account}
+          onChange={(account) => set({ account })}
+          options={[
+            { value: "", label: "Any" },
+            { value: "active", label: "Active" },
+            { value: "blocked", label: "Blocked" },
+          ]}
+        />
+        <SelectFilter
+          label="Aadhaar"
+          value={f.kyc}
+          onChange={(kyc) => set({ kyc })}
+          options={[
+            { value: "", label: "Any" },
+            { value: "VERIFIED", label: "Verified" },
+            { value: "NOT_STARTED", label: "Not verified" },
+            { value: "FAILED", label: "Failed" },
+          ]}
+        />
+        <SelectFilter
+          label="Service"
+          value={f.service}
+          onChange={(service) => set({ service })}
+          options={[{ value: "", label: "Any" }, ...(options.data?.services ?? []).map((s) => ({ value: s.code, label: s.name }))]}
+        />
+        <SelectFilter
+          label="Society"
+          value={f.society}
+          onChange={(society) => set({ society })}
+          options={[{ value: "", label: "Any" }, ...(options.data?.societies ?? []).map((s) => ({ value: s.code, label: s.name }))]}
+        />
+        <DateFilter label="Joined" range={f.range} from={f.from} to={f.to} onChange={set} />
+        <SelectFilter
+          label="Sort"
+          value={f.sort}
+          neutral="newest"
+          onChange={(sort) => set({ sort })}
+          options={[
+            { value: "newest", label: "Newest first" },
+            { value: "oldest", label: "Oldest first" },
+            { value: "submitted", label: "Waiting longest for review" },
+            { value: "rating", label: "Highest rated" },
+            { value: "jobs", label: "Most jobs" },
+            { value: "name", label: "Name A–Z" },
+          ]}
+        />
+      </FilterBar>
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
@@ -66,8 +128,8 @@ function HelpersView() {
           <SkeletonRows rows={6} cols={7} />
         ) : !data?.helpers.length ? (
           <EmptyState
-            title="No helpers here"
-            body={status === "ALL" ? "Helpers appear once they register on the app." : "Try another filter."}
+            title="No helpers match"
+            body={!status && !activeCount ? "Helpers appear once they register on the app." : "Try another tab or clear a filter."}
           />
         ) : (
           <Table head={["Helper", "Verification", "Services", "Area", "Jobs", "Rating", "Joined"]}>
@@ -119,6 +181,10 @@ function HelpersView() {
           </Table>
         )}
       </Card>
+
+      {data && (
+        <Pagination page={data.page} pages={data.pages} total={data.total} noun="helpers" onPage={(p) => set({ page: String(p) })} />
+      )}
     </>
   );
 }

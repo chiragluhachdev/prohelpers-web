@@ -7,6 +7,7 @@ import {
   Badge, Button, Card, Cell, EmptyState, ErrorNote, Field, Input,
   Modal, PageHeader, Row, SkeletonRows, Table, Toggle,
 } from "@/components/ui";
+import { FilterBar, SearchFilter, SelectFilter } from "@/components/filters";
 
 type Category = {
   _id: string;
@@ -69,8 +70,20 @@ export default function CategoriesPage() {
     }
   }
 
-  const categories = data ?? [];
-  const liveCount = categories.filter((c) => c.active).length;
+  const allCategories = data ?? [];
+  const liveCount = allCategories.filter((c) => c.active).length;
+
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
+  const needle = q.toLowerCase();
+  const categories = allCategories
+    .filter((c) => !needle || [c.name, c.nameHi, c.icon].some((v) => String(v || "").toLowerCase().includes(needle)))
+    .filter((c) =>
+      status === "live" ? c.active && !c.comingSoon
+        : status === "soon" ? c.comingSoon
+          : status === "off" ? !c.active
+            : true,
+    );
   const modalOpen = creating || !!editing;
 
   return (
@@ -82,7 +95,7 @@ export default function CategoriesPage() {
           <Button
             onClick={() => {
               setCreating(true);
-              setDraft({ icon: "grid", color: "forest700", sortOrder: categories.length + 1, active: true, comingSoon: false });
+              setDraft({ icon: "grid", color: "forest700", sortOrder: allCategories.length + 1, active: true, comingSoon: false });
             }}
           >
             Add category
@@ -92,16 +105,37 @@ export default function CategoriesPage() {
 
       {error && <div className="mb-4"><ErrorNote>{error}</ErrorNote></div>}
 
-      <Card>
-        <Table
-          head={["Name", "Icon", "Sort Order", "Coming Soon", "Active"]}
-        >
-          {loading ? (
-            <SkeletonRows />
-          ) : categories.length === 0 ? (
+      <FilterBar
+        activeCount={[q, status].filter(Boolean).length}
+        onReset={() => { setQ(""); setStatus(""); }}
+        summary={`${categories.length} of ${allCategories.length}`}
+      >
+        <SearchFilter value={q} onChange={setQ} placeholder="Name or icon…" />
+        <SelectFilter
+          label="Status"
+          value={status}
+          onChange={setStatus}
+          options={[
+            { value: "", label: "Any" },
+            { value: "live", label: "Live" },
+            { value: "soon", label: "Coming soon" },
+            { value: "off", label: "Switched off" },
+          ]}
+        />
+      </FilterBar>
+
+      <Card padded={false}>
+        {loading ? (
+          <SkeletonRows cols={5} />
+        ) : categories.length === 0 ? (
+          allCategories.length === 0 ? (
             <EmptyState title="No categories found" body="Add one to get started." />
           ) : (
-            categories.map((c) => (
+            <EmptyState title="No categories match" body="Try clearing a filter." />
+          )
+        ) : (
+          <Table head={["Name", "Icon", "Sort Order", "Coming Soon", "Active"]}>
+            {categories.map((c) => (
               <Row
                 key={c._id}
                 onClick={() => setEditing(c)}
@@ -127,11 +161,11 @@ export default function CategoriesPage() {
                   />
                 </Cell>
               </Row>
-            ))
-          )}
-        </Table>
+            ))}
+          </Table>
+        )}
       </Card>
-      {categories.length > 0 && (
+      {allCategories.length > 0 && (
         <p className="mt-4 text-[13px] text-ink-muted">{liveCount} live categories</p>
       )}
 

@@ -1,27 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import { api } from "@/lib/api";
 import { relative, rupees } from "@/lib/format";
+import { apiQuery, useFilters } from "@/lib/useFilters";
 import {
-  Avatar, Button, Card, Cell, EmptyState, ErrorNote, Field, Input,
-  Modal, PageHeader, Row, Spinner, StatusBadge, Table, Textarea,
+  Avatar, Button, Card, Cell, EmptyState, ErrorNote, Field,
+  Modal, PageHeader, Row, Spinner, StatusBadge, Table, Tabs, Textarea,
   SkeletonRows,
 } from "@/components/ui";
+import { DateFilter, FilterBar, Pagination, SearchFilter, SelectFilter } from "@/components/filters";
 
 type Customer = {
   id: string; name: string; phone: string; photoUrl?: string;
-  accountStatus: string; createdAt: string; bookings: number; spend: number;
+  accountStatus: string; createdAt: string; bookings: number; spend: number; lastBookingAt?: string | null;
 };
 
-export default function CustomersPage() {
+type Payload = {
+  customers: Customer[]; counts: { all: number; active: number; blocked: number };
+  total: number; page: number; pages: number;
+};
+
+const DEFAULTS = { status: "", q: "", has: "", range: "", from: "", to: "", sort: "newest", page: "1" };
+
+function CustomersView() {
   const router = useRouter();
-  const [q, setQ] = useState("");
-  const { data, error, loading, reload } = useApi<{ customers: Customer[] }>(
-    `/api/admin/customers?${new URLSearchParams(q.trim() ? { q: q.trim() } : {})}`,
-  );
+  const { values: f, set, reset, activeCount } = useFilters(DEFAULTS);
+  const { data, error, loading, reload } = useApi<Payload>(`/api/admin/customers?${apiQuery({ ...f, limit: "50" })}`);
 
   const [target, setTarget] = useState<Customer | null>(null);
   const [reason, setReason] = useState("");
@@ -49,18 +56,52 @@ export default function CustomersPage() {
 
   return (
     <>
-      <PageHeader
-        title="Customers"
-        subtitle="Everyone who books help through the app."
-        action={
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search name or phone…"
-            className="max-w-[240px]"
-          />
-        }
-      />
+      <PageHeader title="Customers" subtitle="Everyone who books help through the app." />
+
+      <div className="mb-3">
+        <Tabs
+          active={f.status}
+          onChange={(status) => set({ status })}
+          tabs={[
+            { key: "", label: "All", count: data?.counts.all },
+            { key: "active", label: "Active", count: data?.counts.active },
+            { key: "blocked", label: "Blocked", count: data?.counts.blocked },
+          ]}
+        />
+      </div>
+
+      <FilterBar
+        activeCount={activeCount}
+        onReset={reset}
+        summary={data ? `${data.total} customer${data.total === 1 ? "" : "s"}` : undefined}
+      >
+        <SearchFilter value={f.q} onChange={(q) => set({ q })} placeholder="Name or phone…" />
+        <SelectFilter
+          label="Bookings"
+          value={f.has}
+          onChange={(has) => set({ has })}
+          options={[
+            { value: "", label: "Any" },
+            { value: "booked", label: "Has booked" },
+            { value: "never", label: "Never booked" },
+          ]}
+        />
+        <DateFilter label="Joined" range={f.range} from={f.from} to={f.to} onChange={set} />
+        <SelectFilter
+          label="Sort"
+          value={f.sort}
+          neutral="newest"
+          onChange={(sort) => set({ sort })}
+          options={[
+            { value: "newest", label: "Newest first" },
+            { value: "oldest", label: "Oldest first" },
+            { value: "recent", label: "Booked most recently" },
+            { value: "bookings", label: "Most bookings" },
+            { value: "spend", label: "Highest spend" },
+            { value: "name", label: "Name A–Z" },
+          ]}
+        />
+      </FilterBar>
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
@@ -68,7 +109,10 @@ export default function CustomersPage() {
         {loading ? (
           <SkeletonRows rows={6} cols={7} />
         ) : !data?.customers.length ? (
-          <EmptyState title="No customers found" body="They appear here as soon as they sign up on the app." />
+          <EmptyState
+            title="No customers match"
+            body={activeCount || f.status ? "Try another tab or clear a filter." : "They appear here as soon as they sign up on the app."}
+          />
         ) : (
           <Table head={["Customer", "Phone", "Bookings", "Spend", "Status", "Joined", ""]}>
             {data.customers.map((c) => (
@@ -99,6 +143,10 @@ export default function CustomersPage() {
         )}
       </Card>
 
+      {data && (
+        <Pagination page={data.page} pages={data.pages} total={data.total} noun="customers" onPage={(p) => set({ page: String(p) })} />
+      )}
+
       <Modal open={Boolean(target)} title={`Block ${target?.name}`} onClose={() => setTarget(null)}>
         <div className="grid gap-4">
           {actionError && <ErrorNote>{actionError}</ErrorNote>}
@@ -115,5 +163,13 @@ export default function CustomersPage() {
         </div>
       </Modal>
     </>
+  );
+}
+
+export default function CustomersPage() {
+  return (
+    <Suspense fallback={<Spinner label="Loading customers" />}>
+      <CustomersView />
+    </Suspense>
   );
 }

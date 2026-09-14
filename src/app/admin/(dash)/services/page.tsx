@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
-import { rupees } from "@/lib/format";
+import { rupees, titleCase } from "@/lib/format";
+import { FilterBar, SearchFilter, SelectFilter } from "@/components/filters";
 import {
   Badge, Button, Card, Cell, EmptyState, ErrorNote, Field, Input,
   Modal, PageHeader, Row, Select, SkeletonRows, Table, Textarea, Toggle,
@@ -127,8 +128,32 @@ export default function ServicesPage() {
     }
   }
 
-  const services = data?.services ?? [];
-  const liveCount = services.filter((s) => s.active).length;
+  const allServices = data?.services ?? [];
+  const liveCount = allServices.filter((s) => s.active).length;
+
+  // A handful of services, so they are filtered right here rather than on the server.
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
+  const [category, setCategory] = useState("");
+  const [questions, setQuestions] = useState("");
+  const [sort, setSort] = useState("order");
+  const categories = [...new Set(allServices.map((s) => s.category).filter(Boolean))].sort();
+  const needle = q.toLowerCase();
+  const services = allServices
+    .filter((s) =>
+      !needle ||
+      [s.name, s.nameHi, s.code, s.description].some((v) => String(v || "").toLowerCase().includes(needle)),
+    )
+    .filter((s) => (status === "live" ? s.active : status === "retired" ? !s.active : true))
+    .filter((s) => !category || s.category === category)
+    .filter((s) => (questions === "on" ? s.optionsEnabled : questions === "off" ? !s.optionsEnabled : true))
+    .sort((a, b) =>
+      sort === "priceLow" ? a.basePrice - b.basePrice
+        : sort === "priceHigh" ? b.basePrice - a.basePrice
+          : sort === "name" ? a.name.localeCompare(b.name)
+            : (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+    );
+  const activeFilters = [q, status, category, questions].filter(Boolean).length;
 
   return (
     <>
@@ -149,18 +174,70 @@ export default function ServicesPage() {
 
       {error && <div className="mb-4"><ErrorNote>{error}</ErrorNote></div>}
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <Badge tone="green">{liveCount} bookable</Badge>
-        {services.length - liveCount > 0 && (
-          <Badge tone="slate">{services.length - liveCount} retired</Badge>
+        {allServices.length - liveCount > 0 && (
+          <Badge tone="slate">{allServices.length - liveCount} retired</Badge>
         )}
       </div>
+
+      <FilterBar
+        activeCount={activeFilters}
+        onReset={() => { setQ(""); setStatus(""); setCategory(""); setQuestions(""); }}
+        summary={`${services.length} of ${allServices.length}`}
+      >
+        <SearchFilter value={q} onChange={setQ} placeholder="Name, code or description…" />
+        <SelectFilter
+          label="Status"
+          value={status}
+          onChange={setStatus}
+          options={[
+            { value: "", label: "Any" },
+            { value: "live", label: "Bookable" },
+            { value: "retired", label: "Retired" },
+          ]}
+        />
+        {categories.length > 1 && (
+          <SelectFilter
+            label="Category"
+            value={category}
+            onChange={setCategory}
+            options={[{ value: "", label: "Any" }, ...categories.map((c) => ({ value: c, label: titleCase(c) }))]}
+          />
+        )}
+        <SelectFilter
+          label="Questions"
+          value={questions}
+          onChange={setQuestions}
+          options={[
+            { value: "", label: "Any" },
+            { value: "on", label: "Switched on" },
+            { value: "off", label: "Switched off" },
+          ]}
+        />
+        <SelectFilter
+          label="Sort"
+          value={sort}
+          neutral="order"
+          onChange={setSort}
+          options={[
+            { value: "order", label: "Display order" },
+            { value: "name", label: "Name A–Z" },
+            { value: "priceLow", label: "Price: low to high" },
+            { value: "priceHigh", label: "Price: high to low" },
+          ]}
+        />
+      </FilterBar>
 
       <Card padded={false}>
         {loading ? (
           <SkeletonRows rows={6} cols={6} />
         ) : services.length === 0 ? (
-          <EmptyState title="No services yet" body="Add the first service customers can book." />
+          allServices.length === 0 ? (
+            <EmptyState title="No services yet" body="Add the first service customers can book." />
+          ) : (
+            <EmptyState title="No services match" body="Try clearing a filter." />
+          )
         ) : (
           <Table head={["Service", "Code", "Price", "Duration", "Questions", "Status", ""]}>
             {services.map((s) => (

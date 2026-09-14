@@ -23,6 +23,10 @@ type Detail = {
     id: string; name: string; phone: string; email?: string; photoUrl?: string;
     accountStatus: string; blockReason?: string; createdAt: string;
     previousPhones?: { phone: string; changedAt: string }[];
+    referral?: {
+      code: string; balance: number; referrals: number;
+      referredBy: { id: string; name: string; phone: string; role: string } | null;
+    };
   };
   profile: {
     gender?: string; experienceYears?: number; bio?: string;
@@ -163,9 +167,15 @@ export default function HelperDetailPage() {
                 ["Name on Aadhaar", profile.aadhaarName],
                 ["Aadhaar number", profile.aadhaarLast4 ? `XXXX XXXX ${profile.aadhaarLast4}` : "—"],
                 ["Method", profile.kycMethod ? titleCase(profile.kycMethod) : "—"],
-                ["Verified on", profile.kycVerifiedAt ? dateTime(profile.kycVerifiedAt) : "—"],
-                ["Submitted for review", profile.submittedAt ? dateTime(profile.submittedAt) : "Not submitted"],
-                ["Reviewed on", profile.reviewedAt ? dateTime(profile.reviewedAt) : "—"],
+                ["Registered on", dateTime(helper.createdAt)],
+                ["Reviewed on", profile.reviewedAt ? dateTime(profile.reviewedAt) : "Not yet reviewed"],
+                ["Referral code", helper.referral ? <span key="rc" className="font-mono font-semibold tracking-[0.12em]">{helper.referral.code}</span> : "—"],
+                ["Referral balance", helper.referral ? `${rupees(helper.referral.balance)} · ${helper.referral.referrals} referral${helper.referral.referrals === 1 ? "" : "s"}` : "—"],
+                ["Joined with code of", helper.referral?.referredBy ? (
+                  <Link key="rb" href={`/admin/${helper.referral.referredBy.role === "helper" ? "helpers" : "customers"}/${helper.referral.referredBy.id}`} className="font-medium text-forest-700 hover:underline">
+                    {helper.referral.referredBy.name || helper.referral.referredBy.phone}
+                  </Link>
+                ) : "—"],
               ]}
             />
           </Card>
@@ -232,8 +242,11 @@ export default function HelperDetailPage() {
 
           {/* --------------------------------------------------- history */}
           <Card padded={false}>
-            <div className="px-5 pt-5">
+            <div className="flex items-center justify-between px-5 pt-5">
               <SectionTitle title="Recent bookings" />
+              <Link href={`/admin/bookings?helper=${id}`} className="-mt-3 text-[13px] font-medium text-forest-700 hover:underline">
+                See all & filter →
+              </Link>
             </div>
             {data.tasks.length === 0 ? (
               <EmptyState title="No jobs yet" />

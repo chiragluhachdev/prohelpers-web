@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { dateTime, titleCase } from "@/lib/format";
+import { apiQuery } from "@/lib/useFilters";
+import { DateFilter, FilterBar, Pagination, SearchFilter, SelectFilter, type FilterOptions } from "@/components/filters";
 import {
   Badge, Button, Card, Cell, EmptyState, ErrorNote, Field, Input,
   PageHeader, Row, SectionTitle, Spinner, Table,
@@ -73,6 +75,26 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
     ],
   },
   {
+    title: "Referrals",
+    blurb: "Share a code, a friend joins, both get referral balance. Customers can only spend it on bookings, up to the share of each booking set below; helpers can only use it to pay what they owe the platform. It is never paid out as cash, and the platform covers every rupee of it.",
+    keys: [
+      {
+        key: "referral_enabled",
+        label: "Accept referral codes",
+        type: "boolean",
+        help: "Off: new sign-ups cannot enter a code. Balances already earned can still be used.",
+      },
+      { key: "referral_reward_amount", label: "Reward to the person who referred", suffix: "₹ per friend who joins" },
+      { key: "referral_welcome_amount", label: "Reward to the friend who joins", suffix: "₹, once, on sign-up" },
+      { key: "referral_apply_window_days", label: "A code can be entered within", suffix: "days of signing up" },
+      {
+        key: "referral_max_booking_percent",
+        label: "Referral balance can pay at most",
+        suffix: "% of a booking's total — the rest of the balance is kept for later",
+      },
+    ],
+  },
+  {
     title: "Money",
     blurb: "Applies to new bookings only — past bookings keep the rates they were created with.",
     keys: [
@@ -83,8 +105,14 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
   },
   {
     title: "Completion & safety",
-    blurb: "The handshake that closes a job, and the limits around it.",
+    blurb: "The handshakes that open and close a job, and the limits around them.",
     keys: [
+      {
+        key: "start_otp_enabled",
+        label: "Ask for the customer's start code before a job starts",
+        type: "boolean",
+        help: "On: the customer gets a 4-digit code when a helper is assigned, and the helper must enter it at the door to start. Wrong tries use the same limit as the completion OTP.",
+      },
       { key: "completion_otp_ttl_seconds", label: "Completion OTP validity", suffix: "seconds" },
       { key: "completion_otp_max_attempts", label: "OTP attempts allowed", suffix: "tries" },
       { key: "rejection_block_threshold", label: "Auto-block after rejections", suffix: "rejections" },
@@ -175,12 +203,13 @@ function ScheduledSummary({ draft }: { draft: Settings }) {
 
 export default function SettingsPage() {
   const { data, error, loading, reload } = useApi<{ settings: Settings }>("/api/admin/settings");
-  const audit = useApi<{ logs: AuditLog[] }>("/api/admin/audit?limit=25");
 
   const [draft, setDraft] = useState<Settings>({});
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saved, setSaved] = useState(false);
+  // Bumped after a save, so the audit log below reloads with the new entry.
+  const [auditVersion, setAuditVersion] = useState(0);
 
   useEffect(() => {
     if (data?.settings) setDraft(data.settings);
@@ -200,7 +229,7 @@ export default function SettingsPage() {
       }
       await api("/api/admin/settings", { method: "PUT", body: patch });
       await reload();
-      await audit.reload();
+      setAuditVersion((v) => v + 1);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
@@ -289,32 +318,73 @@ export default function SettingsPage() {
           </Card>
         ))}
 
-        <Card padded={false}>
-          <div className="px-5 pt-5">
-            <SectionTitle title="Audit log" />
-            <p className="-mt-1 mb-3 text-[13px] text-ink-muted">
-              Approvals, rejections, blocks and rate changes — who did what, when and why.
-            </p>
-          </div>
-          {audit.loading ? (
-            <Spinner />
-          ) : !audit.data?.logs.length ? (
-            <EmptyState title="Nothing logged yet" />
-          ) : (
-            <Table head={["Action", "Entity", "Admin", "Reason", "When"]}>
-              {audit.data.logs.map((l) => (
-                <Row key={l._id}>
-                  <Cell className="font-medium">{titleCase(l.action)}</Cell>
-                  <Cell className="text-ink-soft">{l.entity}</Cell>
-                  <Cell className="text-ink-soft">{l.adminId?.name || "—"}</Cell>
-                  <Cell className="max-w-[280px] truncate text-[13px] text-ink-muted">{l.reason || "—"}</Cell>
-                  <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{dateTime(l.createdAt)}</Cell>
-                </Row>
-              ))}
-            </Table>
-          )}
-        </Card>
+        <AuditLogPanel key={auditVersion} />
       </div>
     </>
+  );
+}
+
+/** Who changed what, filterable — the log grows with every approval, block and rate change. */
+function AuditLogPanel() {
+  const [f, setF] = useState({ q: "", action: "", entity: "", range: "", from: "", to: "", page: "1" });
+  const set = (patch: Partial<typeof f>) => setF((prev) => ({ ...prev, ...patch, page: patch.page ?? "1" }));
+  const options = useApi<FilterOptions>("/api/admin/filter-options");
+  const audit = useApi<{ logs: AuditLog[]; total: number; page: number; pages: number }>(
+    `/api/admin/audit?${apiQuery({ ...f, limit: "25" })}`,
+  );
+  const activeCount = [f.q, f.action, f.entity, f.range].filter(Boolean).length;
+
+  return (
+    <div>
+      <SectionTitle title="Audit log" />
+      <p className="-mt-1 mb-3 text-[13px] text-ink-muted">
+        Approvals, rejections, blocks and rate changes — who did what, when and why.
+      </p>
+
+      <FilterBar
+        activeCount={activeCount}
+        onReset={() => setF({ q: "", action: "", entity: "", range: "", from: "", to: "", page: "1" })}
+        summary={audit.data ? `${audit.data.total} entr${audit.data.total === 1 ? "y" : "ies"}` : undefined}
+      >
+        <SearchFilter value={f.q} onChange={(q) => set({ q })} placeholder="Reason, action or admin…" />
+        <SelectFilter
+          label="Action"
+          value={f.action}
+          onChange={(action) => set({ action })}
+          options={[{ value: "", label: "Any" }, ...(options.data?.auditActions ?? []).map((a) => ({ value: a, label: titleCase(a) }))]}
+        />
+        <SelectFilter
+          label="On"
+          value={f.entity}
+          onChange={(entity) => set({ entity })}
+          options={[{ value: "", label: "Anything" }, ...(options.data?.auditEntities ?? []).map((e) => ({ value: e, label: e }))]}
+        />
+        <DateFilter label="When" range={f.range} from={f.from} to={f.to} onChange={set} />
+      </FilterBar>
+
+      <Card padded={false}>
+        {audit.loading ? (
+          <Spinner />
+        ) : !audit.data?.logs.length ? (
+          <EmptyState title={activeCount ? "Nothing matches" : "Nothing logged yet"} body={activeCount ? "Try clearing a filter." : undefined} />
+        ) : (
+          <Table head={["Action", "Entity", "Admin", "Reason", "When"]}>
+            {audit.data.logs.map((l) => (
+              <Row key={l._id}>
+                <Cell className="font-medium">{titleCase(l.action)}</Cell>
+                <Cell className="text-ink-soft">{l.entity}</Cell>
+                <Cell className="text-ink-soft">{l.adminId?.name || "—"}</Cell>
+                <Cell className="max-w-[280px] truncate text-[13px] text-ink-muted">{l.reason || "—"}</Cell>
+                <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{dateTime(l.createdAt)}</Cell>
+              </Row>
+            ))}
+          </Table>
+        )}
+      </Card>
+
+      {audit.data && (
+        <Pagination page={audit.data.page} pages={audit.data.pages} total={audit.data.total} noun="entries" onPage={(p) => set({ page: String(p) })} />
+      )}
+    </div>
   );
 }
