@@ -12,6 +12,7 @@ import {
   SkeletonRows, Input,
 } from "@/components/ui";
 import { FilterBar, Pagination, SearchFilter } from "@/components/filters";
+import { useColumns } from "@/lib/useColumns";
 
 type Partner = {
   id: string; name: string; phone: string;
@@ -27,6 +28,14 @@ const DEFAULTS = { q: "", page: "1" };
 function PartnersView() {
   const { values: f, set, reset, activeCount } = useFilters(DEFAULTS);
   const { data, error, loading, reload } = useApi<Payload>(`/api/admin/partners?${apiQuery({ ...f, limit: "50" })}`);
+
+  const { isVisible, ColumnToggle } = useColumns("admin_partners", [
+    { id: "partner", label: "Partner" },
+    { id: "phone", label: "Phone" },
+    { id: "code", label: "Code" },
+    { id: "status", label: "Status" },
+    { id: "joined", label: "Joined" },
+  ]);
 
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
@@ -61,6 +70,7 @@ function PartnersView() {
         activeCount={activeCount}
         onReset={reset}
         summary={data ? `${data.total} partner${data.total === 1 ? "" : "s"}` : undefined}
+        actions={<ColumnToggle />}
       >
         <SearchFilter value={f.q} onChange={(q) => set({ q })} placeholder="Name or phone…" />
       </FilterBar>
@@ -76,19 +86,27 @@ function PartnersView() {
             body={activeCount ? "Try clearing the search filter." : "Add a referral partner to get started."}
           />
         ) : (
-          <Table head={["Partner", "Phone", "Code", "Status", "Joined"]}>
+          <Table head={[
+            isVisible("partner") && "Partner",
+            isVisible("phone") && "Phone",
+            isVisible("code") && "Code",
+            isVisible("status") && "Status",
+            isVisible("joined") && "Joined"
+          ].filter(Boolean)}>
             {data.partners.map((p) => (
               <Row key={p.id}>
-                <Cell>
-                  <div className="flex items-center gap-3">
-                    <Avatar name={p.name} />
-                    <span className="font-medium">{p.name}</span>
-                  </div>
-                </Cell>
-                <Cell className="tabular text-ink-soft">{p.phone}</Cell>
-                <Cell className="font-mono text-sm tracking-widest">{p.referralCode || "—"}</Cell>
-                <Cell><StatusBadge status={p.status} /></Cell>
-                <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{relative(p.createdAt)}</Cell>
+                {isVisible("partner") && (
+                  <Cell>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={p.name} />
+                      <span className="font-medium">{p.name}</span>
+                    </div>
+                  </Cell>
+                )}
+                {isVisible("phone") && <Cell className="tabular text-ink-soft">{p.phone}</Cell>}
+                {isVisible("code") && <Cell className="font-mono text-sm tracking-widest">{p.referralCode || "—"}</Cell>}
+                {isVisible("status") && <Cell><StatusBadge status={p.status} /></Cell>}
+                {isVisible("joined") && <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{relative(p.createdAt)}</Cell>}
               </Row>
             ))}
           </Table>

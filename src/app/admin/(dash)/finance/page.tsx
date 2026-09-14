@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { rupees, dateTime } from "@/lib/format";
-import { apiQuery } from "@/lib/useFilters";
+import { apiQuery, useFilters } from "@/lib/useFilters";
+import { useColumns } from "@/lib/useColumns";
 import { DateFilter, FilterBar, Pagination, SearchFilter, SelectFilter } from "@/components/filters";
 import {
   Badge, Button, Card, Cell, EmptyState, ErrorNote, KeyValue, Modal,
@@ -359,6 +360,16 @@ function TransactionsPanel() {
   const { data, error, loading } = useApi<TxnPage>(`/api/admin/finance/transactions?${query}`);
   const activeCount = [f.status !== "all", f.method !== "all", f.q, f.helper, f.range].filter(Boolean).length;
 
+  const { isVisible, ColumnToggle } = useColumns("admin_finance_txns", [
+    { id: "booking", label: "Booking" },
+    { id: "customer", label: "Customer" },
+    { id: "helper", label: "Helper" },
+    { id: "total", label: "Total" },
+    { id: "paidvia", label: "Paid via" },
+    { id: "confirmedby", label: "Confirmed by" },
+    { id: "when", label: "When" },
+  ]);
+
   return (
     <>
       <div className="mb-3">
@@ -372,6 +383,7 @@ function TransactionsPanel() {
         activeCount={activeCount}
         onReset={() => setF({ status: "all", method: "all", q: "", helper: "", range: "", from: "", to: "", page: "1" })}
         summary={data ? `${data.total} transaction${data.total === 1 ? "" : "s"}` : undefined}
+        actions={<ColumnToggle />}
       >
         <SearchFilter value={f.q} onChange={(q) => set({ q })} placeholder="Code, customer or helper…" />
         <SelectFilter
@@ -406,37 +418,57 @@ function TransactionsPanel() {
           ) : !data?.transactions.length ? (
             <EmptyState title="No transactions" body="Try a different filter or search." />
           ) : (
-            <Table head={["Booking", "Customer", "Helper", "Total", "Paid via", "Confirmed by", "When"]}>
+            <Table head={[
+              isVisible("booking") && "Booking",
+              isVisible("customer") && "Customer",
+              isVisible("helper") && "Helper",
+              isVisible("total") && "Total",
+              isVisible("paidvia") && "Paid via",
+              isVisible("confirmedby") && "Confirmed by",
+              isVisible("when") && "When",
+            ].filter(Boolean)}>
               {data.transactions.map((tx) => (
                 <Row key={tx.id} onClick={() => router.push(`/admin/bookings/${tx.id}`)}>
-                  <Cell>
-                    <p className="font-medium">{tx.code}</p>
-                    <p className="truncate text-xs text-ink-muted">{tx.services.map((s) => s.name).join(", ")}</p>
-                  </Cell>
-                  <Cell className="text-[13px] text-ink-soft">
-                    {tx.customer?.name || "—"}
-                    <span className="block text-xs text-ink-muted">{tx.customer?.phone}</span>
-                  </Cell>
-                  <Cell className="text-[13px] text-ink-soft">
-                    {tx.helper?.name || "—"}
-                    <span className="block text-xs text-ink-muted">{tx.helper?.phone}</span>
-                  </Cell>
-                  <Cell className="tabular whitespace-nowrap font-semibold">{rupees(tx.pricing?.total)}</Cell>
-                  <Cell>
-                    {tx.paymentStatus === "PAID" ? (
-                      <Badge tone={tx.paymentMode === "ONLINE" ? "sky" : "green"}>
-                        {tx.paymentMode === "ONLINE" ? "Online" : "Cash / UPI"}
-                      </Badge>
-                    ) : (
-                      <Badge tone="amber">Awaiting</Badge>
-                    )}
-                  </Cell>
-                  <Cell className="text-[13px] text-ink-soft">
-                    {tx.paidByRole === "customer" ? "Customer" : tx.paidByRole === "helper" ? "Helper" : "—"}
-                  </Cell>
-                  <Cell className="whitespace-nowrap text-[13px] text-ink-muted">
-                    {tx.paidAt ? dateTime(tx.paidAt) : tx.completedAt ? dateTime(tx.completedAt) : "—"}
-                  </Cell>
+                  {isVisible("booking") && (
+                    <Cell>
+                      <p className="font-medium">{tx.code}</p>
+                      <p className="truncate text-xs text-ink-muted">{tx.services.map((s) => s.name).join(", ")}</p>
+                    </Cell>
+                  )}
+                  {isVisible("customer") && (
+                    <Cell className="text-[13px] text-ink-soft">
+                      {tx.customer?.name || "—"}
+                      <span className="block text-xs text-ink-muted">{tx.customer?.phone}</span>
+                    </Cell>
+                  )}
+                  {isVisible("helper") && (
+                    <Cell className="text-[13px] text-ink-soft">
+                      {tx.helper?.name || "—"}
+                      <span className="block text-xs text-ink-muted">{tx.helper?.phone}</span>
+                    </Cell>
+                  )}
+                  {isVisible("total") && <Cell className="tabular whitespace-nowrap font-semibold">{rupees(tx.pricing?.total)}</Cell>}
+                  {isVisible("paidvia") && (
+                    <Cell>
+                      {tx.paymentStatus === "PAID" ? (
+                        <Badge tone={tx.paymentMode === "ONLINE" ? "sky" : "green"}>
+                          {tx.paymentMode === "ONLINE" ? "Online" : "Cash / UPI"}
+                        </Badge>
+                      ) : (
+                        <Badge tone="amber">Awaiting</Badge>
+                      )}
+                    </Cell>
+                  )}
+                  {isVisible("confirmedby") && (
+                    <Cell className="text-[13px] text-ink-soft">
+                      {tx.paidByRole === "customer" ? "Customer" : tx.paidByRole === "helper" ? "Helper" : "—"}
+                    </Cell>
+                  )}
+                  {isVisible("when") && (
+                    <Cell className="whitespace-nowrap text-[13px] text-ink-muted">
+                      {tx.paidAt ? dateTime(tx.paidAt) : tx.completedAt ? dateTime(tx.completedAt) : "—"}
+                    </Cell>
+                  )}
                 </Row>
               ))}
             </Table>

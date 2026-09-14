@@ -5,6 +5,7 @@ import { useApi } from "@/lib/useApi";
 import { api } from "@/lib/api";
 import { relative, rupees } from "@/lib/format";
 import { apiQuery, useFilters } from "@/lib/useFilters";
+import { useColumns } from "@/lib/useColumns";
 import {
   Button, Card, Cell, EmptyState, ErrorNote, Field,
   Modal, PageHeader, Row, Spinner, StatusBadge, Table,
@@ -32,6 +33,14 @@ const DEFAULTS = { status: "", page: "1" };
 function RedemptionsView() {
   const { values: f, set, reset, activeCount } = useFilters(DEFAULTS);
   const { data, error, loading, reload } = useApi<Payload>(`/api/admin/redemptions?${apiQuery({ ...f, limit: "50" })}`);
+
+  const { isVisible, ColumnToggle } = useColumns("admin_redemptions", [
+    { id: "date", label: "Date" },
+    { id: "partner", label: "Partner" },
+    { id: "amount", label: "Amount" },
+    { id: "details", label: "Details" },
+    { id: "status", label: "Status" },
+  ]);
 
   const [target, setTarget] = useState<RedemptionRequest | null>(null);
   const [rejecting, setRejecting] = useState(false);
@@ -67,6 +76,7 @@ function RedemptionsView() {
         activeCount={activeCount}
         onReset={reset}
         summary={data ? `${data.total} request${data.total === 1 ? "" : "s"}` : undefined}
+        actions={<ColumnToggle />}
       >
         <SelectFilter
           label="Status"
@@ -92,19 +102,28 @@ function RedemptionsView() {
             body={activeCount ? "Try clearing the filters." : "When partners request payouts, they appear here."}
           />
         ) : (
-          <Table head={["Date", "Partner", "Amount", "Details", "Status", ""]}>
+          <Table head={[
+            isVisible("date") && "Date",
+            isVisible("partner") && "Partner",
+            isVisible("amount") && "Amount",
+            isVisible("details") && "Details",
+            isVisible("status") && "Status",
+            ""
+          ].filter(Boolean)}>
             {data.requests.map((r) => (
               <Row key={r.id}>
-                <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{relative(r.createdAt)}</Cell>
-                <Cell>
-                  <div className="leading-tight">
-                    <p className="font-medium text-ink">{r.userId?.name || "Unknown"}</p>
-                    <p className="text-[13px] text-ink-soft">{r.userId?.phone}</p>
-                  </div>
-                </Cell>
-                <Cell className="tabular font-medium">{rupees(r.amount)}</Cell>
-                <Cell className="text-sm font-mono max-w-[200px] truncate" title={r.paymentDetails}>{r.paymentDetails}</Cell>
-                <Cell><StatusBadge status={r.status} /></Cell>
+                {isVisible("date") && <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{relative(r.createdAt)}</Cell>}
+                {isVisible("partner") && (
+                  <Cell>
+                    <div className="leading-tight">
+                      <p className="font-medium text-ink">{r.userId?.name || "Unknown"}</p>
+                      <p className="text-[13px] text-ink-soft">{r.userId?.phone}</p>
+                    </div>
+                  </Cell>
+                )}
+                {isVisible("amount") && <Cell className="tabular font-medium">{rupees(r.amount)}</Cell>}
+                {isVisible("details") && <Cell className="text-sm font-mono max-w-[200px] truncate" title={r.paymentDetails}>{r.paymentDetails}</Cell>}
+                {isVisible("status") && <Cell><StatusBadge status={r.status} /></Cell>}
                 <Cell className="text-right">
                   {r.status === "PROCESSING" && (
                     <Button size="sm" variant="secondary" onClick={() => { setTarget(r); setRejecting(false); }}>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import { relative, titleCase } from "@/lib/format";
 import { apiQuery, useFilters } from "@/lib/useFilters";
+import { useColumns } from "@/lib/useColumns";
 import {
   Avatar, Badge, Card, Cell, Dot, EmptyState, ErrorNote,
   PageHeader, Row, Spinner, StatusBadge, Table, Tabs,
@@ -37,6 +38,16 @@ function HelpersView() {
   const { values: f, set, reset, activeCount } = useFilters(DEFAULTS);
   const options = useApi<FilterOptions>("/api/admin/filter-options");
   const { data, error, loading } = useApi<Payload>(`/api/admin/helpers?${apiQuery({ ...f, limit: "50" })}`);
+
+  const { isVisible, ColumnToggle } = useColumns("admin_helpers", [
+    { id: "helper", label: "Helper" },
+    { id: "verification", label: "Verification" },
+    { id: "services", label: "Services" },
+    { id: "area", label: "Area" },
+    { id: "jobs", label: "Jobs" },
+    { id: "rating", label: "Rating" },
+    { id: "joined", label: "Joined" },
+  ]);
   const status = f.status;
 
   return (
@@ -59,6 +70,7 @@ function HelpersView() {
         activeCount={activeCount}
         onReset={reset}
         summary={data ? `${data.total} helper${data.total === 1 ? "" : "s"}` : undefined}
+        actions={<ColumnToggle />}
       >
         <SearchFilter value={f.q} onChange={(q) => set({ q })} placeholder="Name or phone…" />
         <SelectFilter
@@ -132,50 +144,72 @@ function HelpersView() {
             body={!status && !activeCount ? "Helpers appear once they register on the app." : "Try another tab or clear a filter."}
           />
         ) : (
-          <Table head={["Helper", "Verification", "Services", "Area", "Jobs", "Rating", "Joined"]}>
+          <Table head={[
+            isVisible("helper") && "Helper",
+            isVisible("verification") && "Verification",
+            isVisible("services") && "Services",
+            isVisible("area") && "Area",
+            isVisible("jobs") && "Jobs",
+            isVisible("rating") && "Rating",
+            isVisible("joined") && "Joined"
+          ].filter(Boolean)}>
             {data.helpers.map((h) => (
               <Row key={h.id} onClick={() => router.push(`/admin/helpers/${h.id}`)}>
-                <Cell>
-                  <div className="flex items-center gap-3">
-                    <Avatar name={h.name} src={h.photoUrl} />
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-1.5 truncate font-medium">
-                        {h.name}
-                        {h.isOnline && <Dot on />}
-                      </p>
-                      <p className="truncate text-xs text-ink-muted">{h.phone}</p>
+                {isVisible("helper") && (
+                  <Cell>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={h.name} src={h.photoUrl} />
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-1.5 truncate font-medium">
+                          {h.name}
+                          {h.isOnline && <Dot on />}
+                        </p>
+                        <p className="truncate text-xs text-ink-muted">{h.phone}</p>
+                      </div>
                     </div>
-                  </div>
-                </Cell>
-                <Cell>
-                  <div className="flex flex-wrap gap-1.5">
-                    <StatusBadge status={h.approvalStatus} />
-                    {h.accountStatus === "blocked" && <Badge tone="rose">Blocked</Badge>}
-                  </div>
-                </Cell>
-                <Cell className="text-ink-soft">
-                  <span className="line-clamp-1 text-[13px]">
-                    {h.services?.length ? h.services.map(titleCase).join(", ") : "—"}
-                  </span>
-                </Cell>
-                <Cell className="text-[13px] text-ink-soft">
-                  {h.serviceArea?.label || "—"}
-                  {h.serviceArea?.radiusKm ? (
-                    <span className="block text-xs text-ink-muted">{h.serviceArea.radiusKm} km radius</span>
-                  ) : null}
-                </Cell>
-                <Cell className="tabular whitespace-nowrap">
-                  {h.completedJobs}
-                  {h.jobsLabel && h.jobsLabel !== String(h.completedJobs) && (
-                    <span className="ml-1.5 text-[12px] text-ink-muted" title="What customers see">
-                      · shows {h.jobsLabel}
+                  </Cell>
+                )}
+                {isVisible("verification") && (
+                  <Cell>
+                    <div className="flex flex-wrap gap-1.5">
+                      <StatusBadge status={h.approvalStatus} />
+                      {h.accountStatus === "blocked" && <Badge tone="rose">Blocked</Badge>}
+                    </div>
+                  </Cell>
+                )}
+                {isVisible("services") && (
+                  <Cell className="text-ink-soft">
+                    <span className="line-clamp-1 text-[13px]">
+                      {h.services?.length ? h.services.map(titleCase).join(", ") : "—"}
                     </span>
-                  )}
-                </Cell>
-                <Cell className="tabular whitespace-nowrap">
-                  {h.ratingCount ? `${h.rating.toFixed(1)} ★` : <span className="text-ink-muted">—</span>}
-                </Cell>
-                <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{relative(h.createdAt)}</Cell>
+                  </Cell>
+                )}
+                {isVisible("area") && (
+                  <Cell className="text-[13px] text-ink-soft">
+                    {h.serviceArea?.label || "—"}
+                    {h.serviceArea?.radiusKm ? (
+                      <span className="block text-xs text-ink-muted">{h.serviceArea.radiusKm} km radius</span>
+                    ) : null}
+                  </Cell>
+                )}
+                {isVisible("jobs") && (
+                  <Cell className="tabular whitespace-nowrap">
+                    {h.completedJobs}
+                    {h.jobsLabel && h.jobsLabel !== String(h.completedJobs) && (
+                      <span className="ml-1.5 text-[12px] text-ink-muted" title="What customers see">
+                        · shows {h.jobsLabel}
+                      </span>
+                    )}
+                  </Cell>
+                )}
+                {isVisible("rating") && (
+                  <Cell className="tabular whitespace-nowrap">
+                    {h.ratingCount ? `${h.rating.toFixed(1)} ★` : <span className="text-ink-muted">—</span>}
+                  </Cell>
+                )}
+                {isVisible("joined") && (
+                  <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{relative(h.createdAt)}</Cell>
+                )}
               </Row>
             ))}
           </Table>

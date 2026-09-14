@@ -10,14 +10,16 @@ const partnerTokenStore = {
   clear: () => localStorage.removeItem(TOKEN_KEY),
 };
 
-export type PartnerUser = { id: string; name: string; phone: string; role: string; status: string };
+export type PartnerUser = { id: string; name: string; phone: string; role: string; status: string; photoUrl?: string };
 
 type AuthState = {
   user: PartnerUser | null;
   loading: boolean;
-  requestOtp: (phone: string) => Promise<void>;
+  requestOtp: (phone: string) => Promise<{ devCode?: string, dummyAuth?: boolean }>;
   verifyOtpAndSignIn: (phone: string, code: string) => Promise<void>;
   signOut: () => void;
+  reloadUser: () => Promise<void>;
+  setUser: (user: PartnerUser) => void;
 };
 
 const Ctx = createContext<AuthState | null>(null);
@@ -61,8 +63,17 @@ export function PartnerAuthProvider({ children }: { children: React.ReactNode })
       .finally(() => setLoading(false));
   }, []);
 
+  const reloadUser = useCallback(async () => {
+    try {
+      const res = await partnerApi<{ user: PartnerUser }>("/api/auth/me");
+      setUser(res.user);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const requestOtp = useCallback(async (phone: string) => {
-    await partnerApi("/api/auth/otp/request", { method: "POST", body: { phone } });
+    return await partnerApi<{ devCode?: string, dummyAuth?: boolean }>("/api/auth/otp/request", { method: "POST", body: { phone } });
   }, []);
 
   const verifyOtpAndSignIn = useCallback(
@@ -92,7 +103,10 @@ export function PartnerAuthProvider({ children }: { children: React.ReactNode })
     router.push("/referralpartner/login");
   }, [router]);
 
-  const value = useMemo(() => ({ user, loading, requestOtp, verifyOtpAndSignIn, signOut }), [user, loading, requestOtp, verifyOtpAndSignIn, signOut]);
+  const value = useMemo(
+    () => ({ user, loading, requestOtp, verifyOtpAndSignIn, signOut, reloadUser, setUser }),
+    [user, loading, requestOtp, verifyOtpAndSignIn, signOut, reloadUser]
+  );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

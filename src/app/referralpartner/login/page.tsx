@@ -19,7 +19,9 @@ export default function PartnerLogin() {
     setBusy(true);
     setError("");
     try {
-      await requestOtp(phone);
+      const { devCode, dummyAuth } = await requestOtp(phone);
+      if (devCode) setCode(devCode);
+      if (dummyAuth && !devCode) setCode("123456"); // Pre-fill with a valid length if any code works
       setStep("otp");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send OTP.");
@@ -49,7 +51,7 @@ export default function PartnerLogin() {
             <Logo size={48} />
           </div>
           <h1 className="text-xl font-bold tracking-tight">Referral Partner Portal</h1>
-          <p className="mt-1 text-sm text-ink-soft">Sign in to manage your referrals</p>
+          <p className="mt-1 text-sm text-ink-soft">Sign in or create an account</p>
         </div>
 
         {error && <div className="mb-6"><ErrorNote>{error}</ErrorNote></div>}
@@ -67,7 +69,7 @@ export default function PartnerLogin() {
               />
             </Field>
             <Button type="submit" size="md" disabled={phone.length < 10 || busy} className="w-full h-12 font-semibold">
-              {busy ? "Sending OTP…" : "Login"}
+              {busy ? "Sending OTP…" : "Continue"}
             </Button>
           </form>
         ) : (
@@ -85,10 +87,10 @@ export default function PartnerLogin() {
               />
             </Field>
             <Button type="submit" size="md" disabled={code.length !== 6 || busy} className="w-full h-12 font-semibold">
-              {busy ? "Verifying…" : "Verify & Sign In"}
+              {busy ? "Verifying…" : "Verify & Continue"}
             </Button>
             <p className="text-center text-sm text-ink-soft">
-              Didn&apos;t get it? <button type="button" onClick={() => setStep("phone")} className="font-medium text-forest-600 hover:underline">Change number</button>
+              Didn&apos;t get it? <button type="button" onClick={() => { setStep("phone"); setCode(""); }} className="font-medium text-forest-600 hover:underline">Change number</button>
             </p>
           </form>
         )}

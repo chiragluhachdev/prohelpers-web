@@ -13,12 +13,15 @@ export function FilterBar({
   activeCount = 0,
   onReset,
   summary,
+  actions,
 }: {
   children: React.ReactNode;
   activeCount?: number;
   onReset?: () => void;
   /** e.g. "24 bookings" — what the filters currently match. */
   summary?: React.ReactNode;
+  /** Right-aligned actions (e.g. ColumnToggle) */
+  actions?: React.ReactNode;
 }) {
   return (
     <div className="mb-4 rounded-[12px] border border-line bg-surface p-2.5">
@@ -31,6 +34,7 @@ export function FilterBar({
               Clear {activeCount} filter{activeCount === 1 ? "" : "s"}
             </Button>
           )}
+          {actions && <div className="ml-2 pl-2 border-l border-line">{actions}</div>}
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import { dateTime, relative, rupees } from "@/lib/format";
 import { apiQuery, useFilters } from "@/lib/useFilters";
+import { useColumns } from "@/lib/useColumns";
 import {
   Card, Cell, EmptyState, ErrorNote, PageHeader,
   Row, SkeletonRows, Spinner, StatusBadge, Table, Tabs,
@@ -45,6 +46,16 @@ function BookingsView() {
   const { values: f, set, reset, activeCount } = useFilters(DEFAULTS);
   const options = useApi<FilterOptions>("/api/admin/filter-options");
 
+  const { isVisible, ColumnToggle } = useColumns("admin_bookings", [
+    { id: "booking", label: "Booking" },
+    { id: "customer", label: "Customer" },
+    { id: "helper", label: "Helper" },
+    { id: "scheduled", label: "Scheduled" },
+    { id: "status", label: "Status" },
+    { id: "value", label: "Value" },
+    { id: "created", label: "Created" },
+  ]);
+
   const query = apiQuery({ ...f, limit: "50" });
   // Live view — bookings change state on their own while the admin watches.
   const { data, error, loading } = useApi<Payload>(`/api/admin/bookings?${query}`, { pollMs: 8000 });
@@ -68,6 +79,7 @@ function BookingsView() {
         activeCount={activeCount}
         onReset={reset}
         summary={data ? `${data.total} booking${data.total === 1 ? "" : "s"}` : undefined}
+        actions={<ColumnToggle />}
       >
         {(f.customer || f.helper) && (
           <button
@@ -150,26 +162,40 @@ function BookingsView() {
         ) : !data?.bookings.length ? (
           <EmptyState title="No bookings match" body={activeCount ? "Try clearing a filter." : "Bookings appear here as customers make them."} />
         ) : (
-          <Table head={["Booking", "Customer", "Helper", "Scheduled", "Status", "Value", "Created"]}>
+          <Table head={[
+            isVisible("booking") && "Booking",
+            isVisible("customer") && "Customer",
+            isVisible("helper") && "Helper",
+            isVisible("scheduled") && "Scheduled",
+            isVisible("status") && "Status",
+            isVisible("value") && "Value",
+            isVisible("created") && "Created",
+          ].filter(Boolean)}>
             {data.bookings.map((b) => (
               <Row key={b.id} onClick={() => router.push(`/admin/bookings/${b.id}`)}>
-                <Cell>
-                  <span className="font-medium">{b.code}</span>
-                  <span className="mt-0.5 block truncate text-xs text-ink-muted">{b.services.join(", ")}</span>
-                </Cell>
-                <Cell className="text-ink-soft">{b.customer?.name || "—"}</Cell>
-                <Cell className="text-ink-soft">{b.helper?.name || <span className="text-ink-muted">Unassigned</span>}</Cell>
-                <Cell className="whitespace-nowrap text-[13px] text-ink-soft">
-                  {dateTime(b.scheduledAt)}
-                  {b.bookingType === "instant" && (
-                    <span className="ml-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-ink">
-                      Instant
-                    </span>
-                  )}
-                </Cell>
-                <Cell><StatusBadge status={b.status} label={b.statusLabel} /></Cell>
-                <Cell className="tabular whitespace-nowrap font-medium">{rupees(b.total)}</Cell>
-                <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{relative(b.createdAt)}</Cell>
+                {isVisible("booking") && (
+                  <Cell>
+                    <span className="font-medium">{b.code}</span>
+                    <span className="mt-0.5 block truncate text-xs text-ink-muted">{b.services.join(", ")}</span>
+                  </Cell>
+                )}
+                {isVisible("customer") && <Cell className="text-ink-soft">{b.customer?.name || "—"}</Cell>}
+                {isVisible("helper") && <Cell className="text-ink-soft">{b.helper?.name || <span className="text-ink-muted">Unassigned</span>}</Cell>}
+                {isVisible("scheduled") && (
+                  <Cell className="whitespace-nowrap text-[13px] text-ink-soft">
+                    {dateTime(b.scheduledAt)}
+                    {b.bookingType === "instant" && (
+                      <span className="ml-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-ink">
+                        Instant
+                      </span>
+                    )}
+                  </Cell>
+                )}
+                {isVisible("status") && <Cell><StatusBadge status={b.status} label={b.statusLabel} /></Cell>}
+                {isVisible("value") && <Cell className="tabular whitespace-nowrap font-medium">{rupees(b.total)}</Cell>}
+                {isVisible("created") && (
+                  <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{relative(b.createdAt)}</Cell>
+                )}
               </Row>
             ))}
           </Table>

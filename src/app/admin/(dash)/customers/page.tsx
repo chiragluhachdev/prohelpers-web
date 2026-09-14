@@ -12,6 +12,7 @@ import {
   SkeletonRows,
 } from "@/components/ui";
 import { DateFilter, FilterBar, Pagination, SearchFilter, SelectFilter } from "@/components/filters";
+import { useColumns } from "@/lib/useColumns";
 
 type Customer = {
   id: string; name: string; phone: string; photoUrl?: string;
@@ -29,6 +30,15 @@ function CustomersView() {
   const router = useRouter();
   const { values: f, set, reset, activeCount } = useFilters(DEFAULTS);
   const { data, error, loading, reload } = useApi<Payload>(`/api/admin/customers?${apiQuery({ ...f, limit: "50" })}`);
+
+  const { isVisible, ColumnToggle } = useColumns("admin_customers", [
+    { id: "customer", label: "Customer" },
+    { id: "phone", label: "Phone" },
+    { id: "bookings", label: "Bookings" },
+    { id: "spend", label: "Spend" },
+    { id: "status", label: "Status" },
+    { id: "joined", label: "Joined" },
+  ]);
 
   const [target, setTarget] = useState<Customer | null>(null);
   const [reason, setReason] = useState("");
@@ -74,6 +84,7 @@ function CustomersView() {
         activeCount={activeCount}
         onReset={reset}
         summary={data ? `${data.total} customer${data.total === 1 ? "" : "s"}` : undefined}
+        actions={<ColumnToggle />}
       >
         <SearchFilter value={f.q} onChange={(q) => set({ q })} placeholder="Name or phone…" />
         <SelectFilter
@@ -114,20 +125,30 @@ function CustomersView() {
             body={activeCount || f.status ? "Try another tab or clear a filter." : "They appear here as soon as they sign up on the app."}
           />
         ) : (
-          <Table head={["Customer", "Phone", "Bookings", "Spend", "Status", "Joined", ""]}>
+          <Table head={[
+            isVisible("customer") && "Customer",
+            isVisible("phone") && "Phone",
+            isVisible("bookings") && "Bookings",
+            isVisible("spend") && "Spend",
+            isVisible("status") && "Status",
+            isVisible("joined") && "Joined",
+            ""
+          ].filter(Boolean)}>
             {data.customers.map((c) => (
               <Row key={c.id} onClick={() => router.push(`/admin/customers/${c.id}`)}>
-                <Cell>
-                  <div className="flex items-center gap-3">
-                    <Avatar name={c.name} src={c.photoUrl} />
-                    <span className="font-medium">{c.name}</span>
-                  </div>
-                </Cell>
-                <Cell className="tabular text-ink-soft">{c.phone}</Cell>
-                <Cell className="tabular">{c.bookings}</Cell>
-                <Cell className="tabular font-medium">{rupees(c.spend)}</Cell>
-                <Cell><StatusBadge status={c.accountStatus} /></Cell>
-                <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{relative(c.createdAt)}</Cell>
+                {isVisible("customer") && (
+                  <Cell>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={c.name} src={c.photoUrl} />
+                      <span className="font-medium">{c.name}</span>
+                    </div>
+                  </Cell>
+                )}
+                {isVisible("phone") && <Cell className="tabular text-ink-soft">{c.phone}</Cell>}
+                {isVisible("bookings") && <Cell className="tabular">{c.bookings}</Cell>}
+                {isVisible("spend") && <Cell className="tabular font-medium">{rupees(c.spend)}</Cell>}
+                {isVisible("status") && <Cell><StatusBadge status={c.accountStatus} /></Cell>}
+                {isVisible("joined") && <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{relative(c.createdAt)}</Cell>}
                 <Cell className="text-right">
                   <Button
                     size="sm"
