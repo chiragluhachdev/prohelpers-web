@@ -45,6 +45,11 @@ export default function PartnerDashboard() {
   const [redeemError, setRedeemError] = useState("");
   const [redeemSuccess, setRedeemSuccess] = useState(false);
 
+  // Setup profile if new user
+  const [needsName, setNeedsName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [nameBusy, setNameBusy] = useState(false);
+
   const loadData = async () => {
     try {
       const res = await partnerApi<DashboardData>("/api/partner/dashboard");
@@ -58,7 +63,12 @@ export default function PartnerDashboard() {
 
   useEffect(() => {
     if (!loading && !user) router.replace("/referralpartner/login");
-    if (user) loadData();
+    if (user && !user.name) {
+      setNeedsName(true);
+      setFetching(false);
+    } else if (user) {
+      loadData();
+    }
   }, [user, loading, router]);
 
   const handleShare = async () => {
@@ -99,8 +109,20 @@ export default function PartnerDashboard() {
     }
   };
 
+  const handleSaveName = async () => {
+    if (!nameInput.trim()) return;
+    setNameBusy(true);
+    try {
+      await partnerApi("/api/partner/profile", { method: "PUT", body: { name: nameInput.trim() } });
+      window.location.reload(); // Reload to refresh user context
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to save name.");
+      setNameBusy(false);
+    }
+  };
+
   if (loading || fetching) return <Spinner label="Loading your dashboard…" />;
-  if (!user || !data) return null;
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-surface md:bg-sunken pb-12">
@@ -111,7 +133,7 @@ export default function PartnerDashboard() {
           <span className="font-semibold text-ink">Partner Portal</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-ink-soft hidden sm:block">Welcome, {user.name.split(" ")[0]} 👋</span>
+          <span className="text-sm font-medium text-ink-soft hidden sm:block">Welcome{user.name ? `, ${user.name.split(" ")[0]}` : ""} 👋</span>
           <Button variant="ghost" size="sm" onClick={signOut}>Sign Out</Button>
         </div>
       </header>
@@ -120,6 +142,8 @@ export default function PartnerDashboard() {
         
         {error && <ErrorNote>{error}</ErrorNote>}
 
+        {!data ? null : (
+          <>
         {/* Top Stats */}
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Earnings Card */}
@@ -301,6 +325,8 @@ export default function PartnerDashboard() {
           </Card>
         </div>
 
+        </>
+        )}
       </main>
 
       {/* Redeem Modal */}
@@ -366,6 +392,31 @@ export default function PartnerDashboard() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Name Setup Modal */}
+      <Modal open={needsName} title="Welcome to Referral Partners" onClose={() => {}}>
+        <div className="grid gap-5 py-2">
+          <p className="text-sm text-ink-soft leading-relaxed">
+            Please enter your full name so we can set up your account and generate your referral code.
+          </p>
+          <Field label="Your Full Name">
+            <Input 
+              autoFocus
+              type="text" 
+              value={nameInput} 
+              onChange={e => setNameInput(e.target.value)} 
+              placeholder="e.g. Ramesh Kumar" 
+            />
+          </Field>
+          <Button 
+            disabled={!nameInput.trim() || nameBusy} 
+            onClick={handleSaveName}
+            className="mt-2 w-full"
+          >
+            {nameBusy ? "Saving…" : "Complete Registration"}
+          </Button>
+        </div>
       </Modal>
     </div>
   );
