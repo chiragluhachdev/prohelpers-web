@@ -23,8 +23,6 @@ type SettingField = {
   choices?: { value: string; label: string }[];
   /** Stored value ÷ scale is what the admin edits — seconds shown as minutes, say. */
   scale?: number;
-  /** Only relevant when location matching is on. */
-  locationOnly?: boolean;
   /** Only shown while this boolean setting is on — a switched-off charge needs no amount. */
   dependsOn?: string;
 };
@@ -36,10 +34,14 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
     blurb: "How an instant booking finds its helper. The search stays open for a set time: available helpers are alerted as soon as they can take it, and anyone who has not answered is reminded until they accept, decline, or the search closes.",
     keys: [
       {
-        key: "match_ignore_location",
-        label: "Alert every helper, wherever they work",
-        type: "boolean",
-        help: "On: a booking goes to every available helper. Off: only helpers who cover that society are alerted.",
+        key: "match_mode",
+        label: "Send a booking to",
+        type: "select",
+        help: "Helpers choose the localities they work in from their app. \"Only that locality\" alerts just the helpers who picked the booking's locality.",
+        choices: [
+          { value: "anywhere", label: "Every available helper" },
+          { value: "society", label: "Only helpers who work in that locality" },
+        ],
       },
       {
         key: "search_duration_seconds",
@@ -63,9 +65,7 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
         type: "boolean",
         help: "Only while the search is still open. Off: a lapsed alert cannot be taken. Either way the phone's countdown decides nothing — the server does.",
       },
-      { key: "search_radius_km", label: "Starting radius", suffix: "km", locationOnly: true },
-      { key: "radius_step_km", label: "Widen by, each reminder", suffix: "km", locationOnly: true },
-      { key: "dispatch_batch_size", label: "New helpers alerted at a time", suffix: "nearest first", locationOnly: true },
+      { key: "dispatch_batch_size", label: "New helpers alerted at a time", suffix: "nearest first" },
     ],
   },
   {
@@ -181,7 +181,7 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
         help: "Off: customers pay their helper directly, and the helper confirms it.",
       },
       {
-        key: "zone_uplift_to", label: "When a locality is priced higher, the extra goes to", type: "select",
+        key: "locality_uplift_to", label: "When a locality is priced higher, the extra goes to", type: "select",
         help: "Locality prices are set under Locality pricing. This decides who keeps the difference from the catalog price.",
         choices: [
           { value: "helper", label: "The helper (they are paid on the price charged)" },
@@ -310,7 +310,11 @@ function MatchingSummary({ draft }: { draft: Settings }) {
 
   return (
     <div className="mb-4 rounded-[10px] border border-forest-100 bg-forest-50 px-4 py-3 text-[13px] leading-relaxed text-forest-800">
-      A booking searches for <b>{fmt(duration)}</b>. Each available helper hears it ring for{" "}
+      A booking searches for <b>{fmt(duration)}</b>.{" "}
+      {draft.match_mode === "society"
+        ? "Only available helpers who work in the booking's locality are alerted."
+        : "Every available helper offering the service is alerted, whatever locality they picked."}{" "}
+      Each one hears it ring for{" "}
       <b>{fmt(ring)}</b>, and if they have not answered, again every <b>{fmt(interval)}</b> — up to{" "}
       <b>{alerts} alert{alerts === 1 ? "" : "s"}</b> before the search closes. Helpers who come online during
       the search are alerted within seconds.
@@ -432,9 +436,7 @@ export default function SettingsPage() {
             {group.title === "Pricing" && <PricingPreview draft={draft} />}
             {group.title === "Bookings for later" && <ScheduledSummary draft={draft} />}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {group.keys.map(({ key, label, suffix, type, help, scale, locationOnly, dependsOn, choices }) =>
-                // Distance settings do nothing while every helper is alerted.
-                locationOnly && toBool(draft.match_ignore_location) ? null :
+              {group.keys.map(({ key, label, suffix, type, help, scale, dependsOn, choices }) =>
                 // A switched-off charge needs no amount.
                 dependsOn && !toBool(draft[dependsOn]) ? null :
                 type === "select" ? (

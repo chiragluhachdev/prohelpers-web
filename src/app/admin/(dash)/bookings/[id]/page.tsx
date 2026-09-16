@@ -38,6 +38,7 @@ type BookingDetail = {
       discountLabel?: string; discountPercent?: number; platformFeeLabel?: string;
       surcharge?: number; surchargeLabel?: string; gst?: number; gstPercent?: number; gstBase?: string; gstLabel?: string;
       helperCommission: number; helperCommissionPercent: number; helperPayout: number; currency?: string;
+      listServicesAmount?: number; localityUplift?: number; localityCode?: string; localityName?: string; priceVersion?: number;
     };
     helper: Person; customer: Person;
     createdAt: string; acceptedAt?: string; startedAt?: string; completedAt?: string; settledAt?: string;
@@ -326,6 +327,14 @@ export default function BookingDetailPage() {
         <div className="grid content-start gap-5">
           <Card>
             <SectionTitle title="Bill" />
+            {/* UC-C43 — which locality's prices this booking was made at, frozen with it. */}
+            {p.localityName && (
+              <p className="mb-2 text-[12.5px] text-ink-muted">
+                Priced for <span className="font-medium text-ink">{p.localityName}</span>
+                {p.priceVersion ? ` · price list v${p.priceVersion}` : ""}
+                {p.localityUplift ? ` · ${p.localityUplift > 0 ? "+" : "−"}${money(Math.abs(p.localityUplift))} vs catalog` : ""}
+              </p>
+            )}
             <dl>
               {task.services.map((s) => <Detail key={s.code} label={s.name} value={money(s.amount)} mono />)}
               <Detail label="Service amount" value={money(p.servicesAmount)} mono />

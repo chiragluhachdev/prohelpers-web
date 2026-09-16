@@ -13,7 +13,7 @@ const NAV = [
   { href: "/admin/helpers", label: "Helpers", icon: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" },
   { href: "/admin/customers", label: "Customers", icon: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" },
   { href: "/admin/categories", label: "Categories", icon: "M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6zm4 5V7h8v4H8zm0 6v-4h8v4H8z" },
-  { href: "/admin/zones", label: "Locality pricing", icon: "M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" },
+  { href: "/admin/localities", label: "Locality pricing", icon: "M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" },
   { href: "/admin/services", label: "Services", icon: "M20.6 8.4a5 5 0 0 1-6.6 6.6l-6 6a2.1 2.1 0 0 1-3-3l6-6a5 5 0 0 1 6.6-6.6l-3 3 .5 3 3 .5 3-3Z" },
   { href: "/admin/payments", label: "Payments", icon: "M2 9h20M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" },
   { href: "/admin/promos", label: "Promo codes", icon: "M20.6 8.4a5 5 0 0 1-6.6 6.6l-6 6a2.1 2.1 0 0 1-3-3l6-6a5 5 0 0 1 6.6-6.6l-3 3 .5 3 3 .5 3-3ZM7 7h.01" },
