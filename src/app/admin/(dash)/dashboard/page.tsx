@@ -13,7 +13,7 @@ type Dashboard = {
   stats: {
     customers: number; helpers: number; pendingApprovals: number; activeHelpers: number;
     onlineHelpers: number; todayBookings: number; activeTasks: number; completedTasks: number;
-    cancelledTasks: number; noHelperTasks: number; blockedAccounts: number;
+    cancelledTasks: number; noHelperTasks: number; blockedAccounts: number; overdueTasks: number; openComplaints: number;
     revenue: number; outstandingCommission: number;
   };
   recentTasks: {
@@ -137,6 +137,20 @@ export default function DashboardPage() {
 
       <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Completed" value={s.completedTasks} sub={`${s.cancelledTasks} cancelled`} />
+        <Stat
+          label="Complaints"
+          value={s.openComplaints ?? 0}
+          sub={s.openComplaints > 0 ? "Waiting on you" : "None open"}
+          tone={s.openComplaints > 0 ? "rose" : "green"}
+          onClick={() => router.push("/admin/complaints")}
+        />
+        <Stat
+          label="Overdue jobs"
+          value={s.overdueTasks ?? 0}
+          sub={s.overdueTasks > 0 ? "Open past their finish" : "All on time"}
+          tone={s.overdueTasks > 0 ? "rose" : "green"}
+          onClick={() => router.push("/admin/open-tasks")}
+        />
         <Stat
           label="No helper available"
           value={s.noHelperTasks}

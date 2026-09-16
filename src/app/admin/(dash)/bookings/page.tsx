@@ -7,7 +7,7 @@ import { dateTime, relative, rupees } from "@/lib/format";
 import { apiQuery, useFilters } from "@/lib/useFilters";
 import { useColumns } from "@/lib/useColumns";
 import {
-  Card, Cell, EmptyState, ErrorNote, PageHeader,
+  Badge, Card, Cell, EmptyState, ErrorNote, PageHeader,
   Row, SkeletonRows, Spinner, StatusBadge, Table, Tabs,
 } from "@/components/ui";
 import {
@@ -18,6 +18,8 @@ type Booking = {
   id: string; code: string; status: string; statusLabel: string; services: string[];
   total: number; bookingType?: "instant" | "scheduled"; scheduledAt: string; createdAt: string; area: string;
   customer: { name: string } | null; helper: { name: string } | null;
+  /** Open well past its expected finish (UC-C18), and who called it off (UC-C22). */
+  overdue?: boolean; cancelledBy?: string | null;
 };
 
 type Payload = {
@@ -191,7 +193,15 @@ function BookingsView() {
                     )}
                   </Cell>
                 )}
-                {isVisible("status") && <Cell><StatusBadge status={b.status} label={b.statusLabel} /></Cell>}
+                {isVisible("status") && (
+                  <Cell>
+                    <div className="flex flex-col items-start gap-1">
+                      <StatusBadge status={b.status} label={b.statusLabel} />
+                      {b.overdue && <Badge tone="rose">Overdue</Badge>}
+                      {b.cancelledBy && <span className="text-[11px] text-ink-muted">by {b.cancelledBy}</span>}
+                    </div>
+                  </Cell>
+                )}
                 {isVisible("value") && <Cell className="tabular whitespace-nowrap font-medium">{rupees(b.total)}</Cell>}
                 {isVisible("created") && (
                   <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{relative(b.createdAt)}</Cell>

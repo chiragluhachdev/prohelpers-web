@@ -17,7 +17,11 @@ type Person = { id: string; name: string; phone: string; photoUrl?: string } | n
 type BookingDetail = {
   task: {
     id: string; code: string; status: string; statusLabel: string;
-    services: { code: string; name: string; icon?: string; basePrice?: number; options: Record<string, unknown>; amount: number }[];
+    services: {
+      code: string; name: string; icon?: string; basePrice?: number; options: Record<string, unknown>; amount: number;
+      optionsAmount?: number; minutes?: number;
+      answers?: { key: string; label: string; type: string; display: string; amount: number; minutes: number }[];
+    }[];
     address: {
       label?: string; line1: string; line2?: string; landmark?: string;
       city?: string; pincode?: string; society?: string; lat?: number; lng?: number;
@@ -31,19 +35,32 @@ type BookingDetail = {
     pricing: {
       servicesAmount: number; platformFee: number; platformFeePercent: number;
       discount: number; promoCode?: string; total: number; referralCredit?: number;
+      discountLabel?: string; discountPercent?: number; platformFeeLabel?: string;
+      surcharge?: number; surchargeLabel?: string; gst?: number; gstPercent?: number; gstBase?: string; gstLabel?: string;
       helperCommission: number; helperCommissionPercent: number; helperPayout: number; currency?: string;
     };
     helper: Person; customer: Person;
     createdAt: string; acceptedAt?: string; startedAt?: string; completedAt?: string; settledAt?: string;
-    cancellation?: { by: string; reason: string; at: string; previousStatus?: string } | null;
+    cancellation?: {
+      by: string; reason: string; at: string; previousStatus?: string;
+      financialImpact?: { referralRefunded: number; charged: number; note: string } | null;
+    } | null;
+    helperCancellations?: { helperId: string | null; helperName: string; by: string; reason: string; previousStatus: string; at: string }[];
+    expectedEndAt?: string;
+    overdueSince?: string | null;
+    overdueReminders?: number;
+    overdueLastRemindedAt?: string | null;
     rated?: boolean;
   };
-  timeline: { _id: string; from?: string; to: string; actorType: string; reason?: string; at: string }[];
+  timeline: {
+    _id: string; kind?: "STATUS" | "MATCHING"; from?: string; to?: string; actorType: string; reason?: string; at: string;
+    meta?: { step?: string; alerted?: { id: string; name: string }[]; reminded?: { id: string; name: string }[]; closesAt?: string; mode?: string; area?: string };
+  }[];
   requests: {
     id: string; round: number; status: string; distanceKm: number;
     sentAt: string; expiresAt: string; respondedAt?: string; helper: Person;
   }[];
-  ratings: { _id: string; direction: string; stars: number; comment?: string; createdAt?: string }[];
+  ratings: { _id: string; direction: string; stars: number; comment?: string; tags?: string[]; createdAt?: string }[];
 };
 
 const money = (n?: number) => rupees(n ?? 0);
@@ -56,6 +73,36 @@ export default function BookingDetailPage() {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [reminded, setReminded] = useState("");
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [reassignReason, setReassignReason] = useState("");
+
+  /** UC-C46 — take the job off this helper and look for another, on the record. */
+  async function reassign() {
+    setBusy(true);
+    setActionError("");
+    try {
+      await api(`/api/admin/bookings/${id}/reassign`, { method: "POST", body: { reason: reassignReason } });
+      await reload();
+      setReassignOpen(false);
+      setReassignReason("");
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "That did not work.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remind() {
+    setReminded("");
+    try {
+      await api(`/api/admin/bookings/${id}/remind`, { method: "POST", body: {} });
+      setReminded("Reminder sent to the customer and the helper.");
+      await reload();
+    } catch (err) {
+      setReminded(err instanceof Error ? err.message : "Could not send the reminder.");
+    }
+  }
 
   async function cancel() {
     setBusy(true);
@@ -78,7 +125,10 @@ export default function BookingDetailPage() {
 
   const { task, timeline, requests, ratings } = data;
   const p = task.pricing ?? ({} as BookingDetail["task"]["pricing"]);
-  const cancellable = ["CREATED", "SEARCHING", "ACCEPTED", "IN_PROGRESS"].includes(task.status);
+  // Admins can call off anything not yet finished (UC-C22).
+  const cancellable = ["CREATED", "SEARCHING", "NO_HELPER_AVAILABLE", "ACCEPTED", "IN_PROGRESS", "COMPLETION_PENDING"].includes(task.status);
+  const open = ["ACCEPTED", "IN_PROGRESS", "COMPLETION_PENDING"].includes(task.status);
+  const BY: Record<string, string> = { customer: "the customer", helper: "the helper", admin: "an admin", system: "the system" };
 
   const address = [task.address?.line1, task.address?.line2, task.address?.landmark]
     .filter(Boolean)
@@ -96,6 +146,9 @@ export default function BookingDetailPage() {
         action={
           <div className="flex items-center gap-3">
             <StatusBadge status={task.status} label={task.statusLabel} />
+            {task.helper && ["ACCEPTED"].includes(task.status) && (
+              <Button variant="secondary" onClick={() => setReassignOpen(true)}>Reassign</Button>
+            )}
             {cancellable && <Button variant="danger" onClick={() => setCancelOpen(true)}>Cancel booking</Button>}
           </div>
         }
@@ -104,10 +157,28 @@ export default function BookingDetailPage() {
       {task.cancellation?.at && (
         <div className="mb-5">
           <ErrorNote>
-            <strong className="font-semibold">Cancelled by {task.cancellation.by}</strong>
-            {task.cancellation.previousStatus && ` from ${titleCase(task.cancellation.previousStatus)}`} ·{" "}
+            <strong className="font-semibold">Cancelled by {BY[task.cancellation.by] || task.cancellation.by}</strong>
+            {task.cancellation.previousStatus && ` while ${titleCase(task.cancellation.previousStatus).toLowerCase()}`} ·{" "}
             {dateTime(task.cancellation.at)} — {task.cancellation.reason}
+            {task.cancellation.financialImpact?.note && (
+              <span className="mt-1 block text-[12.5px]">
+                Money: {task.cancellation.financialImpact.note}
+              </span>
+            )}
           </ErrorNote>
+        </div>
+      )}
+
+      {open && task.overdueSince && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-amber-ink/20 bg-amber-bg px-3.5 py-2.5 text-sm text-amber-ink">
+          <span>
+            <strong className="font-semibold">Overdue</strong> since {dateTime(task.overdueSince)}
+            {task.expectedEndAt && ` — expected to finish by ${dateTime(task.expectedEndAt)}`}.{" "}
+            {task.overdueReminders ?? 0} reminder{task.overdueReminders === 1 ? "" : "s"} sent
+            {task.overdueLastRemindedAt && `, last ${relative(task.overdueLastRemindedAt)}`}.
+            {reminded && <span className="mt-0.5 block text-[12.5px]">{reminded}</span>}
+          </span>
+          <Button size="sm" variant="secondary" onClick={remind}>Remind both now</Button>
         </div>
       )}
 
@@ -138,6 +209,23 @@ export default function BookingDetailPage() {
             </div>
           </Card>
 
+          {!!task.helperCancellations?.length && (
+            <Card>
+              <SectionTitle title={`Helpers who dropped it (${task.helperCancellations.length})`} />
+              <div className="grid gap-3">
+                {task.helperCancellations.map((c, i) => (
+                  <div key={i} className="border-b border-line/70 pb-3 last:border-0 last:pb-0">
+                    <p className="text-sm font-medium text-ink">
+                      {c.helperId ? <Link href={`/admin/helpers/${c.helperId}`} className="hover:underline">{c.helperName || "Helper"}</Link> : c.helperName || "Helper"}
+                      <span className="font-normal text-ink-muted"> · {c.by === "helper" ? "dropped it" : `removed by ${BY[c.by] || c.by}`} · {dateTime(c.at)}</span>
+                    </p>
+                    <p className="mt-0.5 text-[13px] text-ink-soft">“{c.reason}”</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           {/* ------------------------------------------- what and where */}
           <Card>
             <SectionTitle title="Request" />
@@ -146,7 +234,8 @@ export default function BookingDetailPage() {
               <Detail label="Status" value={<StatusBadge status={task.status} label={task.statusLabel} />} />
               <Detail label="Scheduled for" value={`${dateTime(task.scheduledAt)} · ${task.durationMins} mins`} />
               <Detail label="Society" value={task.address?.society ? titleCase(task.address.society.replace(/_/g, " ")) : "—"} />
-              <Detail label="Address" value={address || "—"} />
+              {/* A copy taken at booking time — the customer editing their saved address later does not change it. */}
+              <Detail label="Address, as booked" value={address || "—"} />
               <Detail label="City / PIN" value={[task.address?.city, task.address?.pincode].filter(Boolean).join(" · ") || "—"} />
               <Detail label="Instructions" value={task.instructions || "—"} />
             </dl>
@@ -165,7 +254,21 @@ export default function BookingDetailPage() {
                       <code className="rounded bg-sunken px-1 py-0.5">{s.code}</code>
                       {s.basePrice != null && ` · base ${money(s.basePrice)}`}
                     </p>
-                    {Object.keys(s.options ?? {}).length > 0 && (
+                    {s.answers?.length ? (
+                      <ul className="mt-1.5 grid gap-0.5">
+                        {s.answers.map((a) => (
+                          <li key={a.key} className="text-xs text-ink-soft">
+                            · {a.label}: <span className="font-medium text-ink">{a.display}</span>
+                            {(a.amount > 0 || a.minutes > 0) && (
+                              <span className="text-ink-muted">
+                                {" "}({[a.amount > 0 && `+${money(a.amount)}`, a.minutes > 0 && `+${a.minutes} min`].filter(Boolean).join(", ")})
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : Object.keys(s.options ?? {}).length > 0 ? (
+                      // Bookings made before answers were kept with their questions.
                       <ul className="mt-1.5 grid gap-0.5">
                         {Object.entries(s.options).map(([k, v]) => (
                           <li key={k} className="text-xs text-ink-soft">
@@ -173,7 +276,8 @@ export default function BookingDetailPage() {
                           </li>
                         ))}
                       </ul>
-                    )}
+                    ) : null}
+                    {!!s.minutes && <p className="mt-1 text-[11px] text-ink-muted">About {s.minutes} min</p>}
                   </div>
                   <span className="tabular shrink-0 text-sm font-semibold">{money(s.amount)}</span>
                 </div>
@@ -224,8 +328,15 @@ export default function BookingDetailPage() {
             <SectionTitle title="Bill" />
             <dl>
               {task.services.map((s) => <Detail key={s.code} label={s.name} value={money(s.amount)} mono />)}
-              <Detail label={`Platform fee (${p.platformFeePercent ?? 0}%)`} value={money(p.platformFee)} mono />
-              {p.discount > 0 && <Detail label={`Discount${p.promoCode ? ` · ${p.promoCode}` : ""}`} value={`− ${money(p.discount)}`} mono />}
+              <Detail label="Service amount" value={money(p.servicesAmount)} mono />
+              {p.discount > 0 && (
+                <Detail label={`${p.discountLabel || "Discount"}${p.discountPercent ? ` (${p.discountPercent}%)` : ""}${p.promoCode ? ` · ${p.promoCode}` : ""}`} value={`− ${money(p.discount)}`} mono />
+              )}
+              {p.platformFee > 0 && <Detail label={`${p.platformFeeLabel || "Platform fee"} (${p.platformFeePercent ?? 0}%)`} value={money(p.platformFee)} mono />}
+              {(p.surcharge ?? 0) > 0 && <Detail label={p.surchargeLabel || "Special surcharge"} value={money(p.surcharge)} mono />}
+              {(p.gst ?? 0) > 0 && (
+                <Detail label={`${p.gstLabel || "GST"} (${p.gstPercent ?? 0}%${p.gstBase === "fees" ? " on fees" : ""})`} value={money(p.gst)} mono />
+              )}
               {(p.referralCredit ?? 0) > 0 && (
                 <>
                   <Detail label="Booking total" value={money(p.total)} mono />
@@ -309,27 +420,48 @@ export default function BookingDetailPage() {
               <Detail label="Created" value={dateTime(task.createdAt)} />
               <Detail label="Accepted" value={task.acceptedAt ? dateTime(task.acceptedAt) : "—"} />
               <Detail label="Started" value={task.startedAt ? dateTime(task.startedAt) : "—"} />
+              {task.expectedEndAt && open && <Detail label="Expected finish" value={dateTime(task.expectedEndAt)} />}
               <Detail label="Completed" value={task.completedAt ? dateTime(task.completedAt) : "—"} />
               <Detail label="Settled" value={task.settledAt ? dateTime(task.settledAt) : "—"} />
+              {task.cancellation?.at && <Detail label="Cancelled" value={dateTime(task.cancellation.at)} />}
             </dl>
           </Card>
 
           <Card>
-            <SectionTitle title="Timeline" />
+            <SectionTitle title="Timeline & matching history" />
             {timeline.length === 0 ? (
               <p className="text-sm text-ink-muted">Nothing recorded yet.</p>
             ) : (
               <ol className="relative ml-1.5 border-l border-line">
-                {timeline.map((e) => (
-                  <li key={e._id} className="relative pb-4 pl-4 last:pb-0">
-                    <span className="absolute -left-[4.5px] top-1.5 h-2 w-2 rounded-full bg-forest-500" />
-                    <p className="text-[13px] font-medium text-ink">
-                      {e.from ? `${titleCase(e.from)} → ` : ""}{titleCase(e.to)}
-                    </p>
-                    <p className="text-xs text-ink-muted">{dateTime(e.at)} · by {e.actorType}</p>
-                    {e.reason && <p className="mt-0.5 text-xs text-ink-soft">{e.reason}</p>}
-                  </li>
-                ))}
+                {timeline.map((e) =>
+                  e.kind === "MATCHING" ? (
+                    <li key={e._id} className="relative pb-4 pl-4 last:pb-0">
+                      <span className="absolute -left-[4.5px] top-1.5 h-2 w-2 rounded-full border border-sky-ink bg-surface" />
+                      <p className="text-[13px] font-medium text-sky-ink">{e.reason}</p>
+                      <p className="text-xs text-ink-muted">{dateTime(e.at)} · matching</p>
+                      {!!e.meta?.alerted?.length && (
+                        <p className="mt-0.5 text-xs text-ink-soft">Alerted: {e.meta.alerted.map((h) => h.name).join(", ")}</p>
+                      )}
+                      {!!e.meta?.reminded?.length && (
+                        <p className="mt-0.5 text-xs text-ink-soft">Reminded: {e.meta.reminded.map((h) => h.name).join(", ")}</p>
+                      )}
+                      {e.meta?.step === "SEARCH_STARTED" && e.meta.closesAt && (
+                        <p className="mt-0.5 text-xs text-ink-soft">
+                          {e.meta.mode === "scheduled" ? "In waves" : "Instant search"} · {e.meta.area} · closes {dateTime(e.meta.closesAt)}
+                        </p>
+                      )}
+                    </li>
+                  ) : (
+                    <li key={e._id} className="relative pb-4 pl-4 last:pb-0">
+                      <span className="absolute -left-[4.5px] top-1.5 h-2 w-2 rounded-full bg-forest-500" />
+                      <p className="text-[13px] font-medium text-ink">
+                        {e.from ? `${titleCase(e.from)} → ` : ""}{titleCase(e.to ?? "")}
+                      </p>
+                      <p className="text-xs text-ink-muted">{dateTime(e.at)} · by {e.actorType}</p>
+                      {e.reason && <p className="mt-0.5 text-xs text-ink-soft">{e.reason}</p>}
+                    </li>
+                  ),
+                )}
               </ol>
             )}
           </Card>
@@ -346,9 +478,11 @@ export default function BookingDetailPage() {
                       <Badge tone="green">{"★".repeat(r.stars)}</Badge>
                       <span className="text-xs text-ink-muted">
                         {r.direction === "customer_to_helper" ? "Customer → Helper" : "Helper → Customer"}
+                        {r.createdAt && ` · ${dateTime(r.createdAt)}`}
                       </span>
                     </div>
                     {r.comment && <p className="mt-1.5 text-sm text-ink-soft">“{r.comment}”</p>}
+                    {!!r.tags?.length && <p className="mt-1 text-xs text-ink-muted">{r.tags.join(" · ")}</p>}
                   </div>
                 ))}
               </div>
@@ -356,6 +490,31 @@ export default function BookingDetailPage() {
           </Card>
         </div>
       </div>
+
+      <Modal
+        open={reassignOpen}
+        title="Reassign this booking"
+        subtitle="The helper loses the job, the customer keeps the booking, and we look for someone else. It is kept on the booking's record."
+        onClose={() => setReassignOpen(false)}
+      >
+        <div className="grid gap-4">
+          {actionError && <ErrorNote>{actionError}</ErrorNote>}
+          <Field label="Why?">
+            <Textarea
+              rows={3}
+              value={reassignReason}
+              onChange={(e) => setReassignReason(e.target.value)}
+              placeholder="The helper is not answering and the customer is waiting."
+            />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setReassignOpen(false)}>Keep as is</Button>
+            <Button disabled={!reassignReason.trim() || busy} onClick={reassign}>
+              {busy ? "Moving…" : "Find another helper"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={cancelOpen} title="Cancel this booking" onClose={() => setCancelOpen(false)}>
         <div className="grid gap-4">

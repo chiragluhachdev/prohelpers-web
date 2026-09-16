@@ -5,21 +5,13 @@ import { api } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { rupees, titleCase } from "@/lib/format";
 import { FilterBar, SearchFilter, SelectFilter } from "@/components/filters";
+import { QuestionEditor, type ServiceOption } from "@/components/QuestionEditor";
 import {
   Badge, Button, Card, Cell, EmptyState, ErrorNote, Field, Input,
-  Modal, PageHeader, Row, Select, SkeletonRows, Table, Textarea, Toggle,
+  Modal, PageHeader, Row, SkeletonRows, Table, Textarea, Toggle,
 } from "@/components/ui";
 
-export type ServiceOption = {
-  key: string;
-  label: string;
-  type: "number" | "text" | "select" | "boolean";
-  choices?: string[];
-  unit?: string;
-  required?: boolean;
-  defaultValue?: string | number | boolean;
-  pricePerUnit?: number;
-};
+export type { ServiceOption } from "@/components/QuestionEditor";
 
 type Service = {
   _id: string;
@@ -96,9 +88,6 @@ export default function ServicesPage() {
       setBusy("");
     }
   }
-
-  const patchOption = (i: number, patch: Partial<ServiceOption>) =>
-    setOptDraft((list) => list.map((o, idx) => (idx === i ? { ...o, ...patch } : o)));
 
   async function saveOptions() {
     if (!optionsFor) return;
@@ -310,7 +299,7 @@ export default function ServicesPage() {
         open={Boolean(optionsFor)}
         size="lg"
         title={`Questions for ${optionsFor?.name ?? ""}`}
-        subtitle="Asked at checkout under “Customise your booking”. A question with a price adds to the bill the moment the customer answers it."
+        subtitle="Asked when a customer books this service, in their language. Each answer can add to the price and to how long the job takes — the app shows only what you set here."
         onClose={() => setOptionsFor(null)}
       >
         <div className="mb-4">
@@ -326,141 +315,9 @@ export default function ServicesPage() {
           />
         </div>
 
-        <div className="max-h-[46vh] space-y-3 overflow-y-auto pr-1">
-          {optDraft.length === 0 ? (
-            <div className="rounded-[10px] border border-dashed border-line-strong p-6 text-center">
-              <p className="text-sm font-medium text-ink">No questions yet</p>
-              <p className="mt-1 text-[13px] text-ink-muted">
-                Room size, extra bathrooms, a balcony — anything that changes the work or the price.
-              </p>
-            </div>
-          ) : (
-            optDraft.map((o, i) => (
-              <div key={i} className="rounded-[10px] border border-line bg-sunken p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
-                    Question {i + 1}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setOptDraft((list) => list.filter((_, idx) => idx !== i))}
-                    className="text-[12px] font-medium text-rose-ink hover:underline"
-                  >
-                    Remove
-                  </button>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Label" hint="What the customer reads">
-                    <Input
-                      value={o.label ?? ""}
-                      placeholder="How much is there?"
-                      onChange={(e) => patchOption(i, { label: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Key" hint="Stored on the booking. Letters, digits, underscores.">
-                    <Input
-                      value={o.key ?? ""}
-                      placeholder="load"
-                      onChange={(e) => patchOption(i, { key: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Type">
-                    <Select
-                      value={o.type}
-                      onChange={(e) =>
-                        patchOption(i, {
-                          type: e.target.value as ServiceOption["type"],
-                          defaultValue: e.target.value === "boolean" ? false : e.target.value === "number" ? 0 : "",
-                        })
-                      }
-                    >
-                      <option value="select">Choice</option>
-                      <option value="number">Number</option>
-                      <option value="boolean">Yes / no</option>
-                      <option value="text">Free text</option>
-                    </Select>
-                  </Field>
-                  <Field label="Price per unit" hint="₹ added per unit. Leave 0 for free.">
-                    <Input
-                      type="number"
-                      value={String(o.pricePerUnit ?? 0)}
-                      onChange={(e) => patchOption(i, { pricePerUnit: Number(e.target.value) })}
-                    />
-                  </Field>
-
-                  {o.type === "select" && (
-                    <div className="sm:col-span-2">
-                      <Field label="Choices" hint="Comma separated — at least two.">
-                        <Input
-                          value={(o.choices ?? []).join(", ")}
-                          placeholder="Light, Medium, Heavy"
-                          onChange={(e) =>
-                            patchOption(i, { choices: e.target.value.split(",").map((c) => c.trim()) })
-                          }
-                        />
-                      </Field>
-                    </div>
-                  )}
-
-                  {o.type === "number" && (
-                    <Field label="Unit" hint="Shown next to the price, e.g. “bathrooms”.">
-                      <Input
-                        value={o.unit ?? ""}
-                        placeholder="bathrooms"
-                        onChange={(e) => patchOption(i, { unit: e.target.value })}
-                      />
-                    </Field>
-                  )}
-
-                  <Field label="Default answer">
-                    {o.type === "boolean" ? (
-                      <Select
-                        value={o.defaultValue ? "true" : "false"}
-                        onChange={(e) => patchOption(i, { defaultValue: e.target.value === "true" })}
-                      >
-                        <option value="false">No</option>
-                        <option value="true">Yes</option>
-                      </Select>
-                    ) : o.type === "select" ? (
-                      <Select
-                        value={String(o.defaultValue ?? "")}
-                        onChange={(e) => patchOption(i, { defaultValue: e.target.value })}
-                      >
-                        {(o.choices ?? []).filter(Boolean).map((c) => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </Select>
-                    ) : (
-                      <Input
-                        type={o.type === "number" ? "number" : "text"}
-                        value={String(o.defaultValue ?? "")}
-                        onChange={(e) =>
-                          patchOption(i, {
-                            defaultValue: o.type === "number" ? Number(e.target.value) : e.target.value,
-                          })
-                        }
-                      />
-                    )}
-                  </Field>
-                </div>
-              </div>
-            ))
-          )}
+        <div className="max-h-[56vh] overflow-y-auto pr-1">
+          <QuestionEditor options={optDraft} onChange={setOptDraft} />
         </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            setOptDraft((list) => [
-              ...list,
-              { key: "", label: "", type: "select", choices: ["", ""], defaultValue: "", pricePerUnit: 0 },
-            ])
-          }
-          className="mt-3 w-full rounded-[10px] border border-dashed border-line-strong py-2.5 text-[13px] font-medium text-forest-700 transition hover:border-forest-400 hover:bg-forest-50"
-        >
-          + Add question
-        </button>
 
         {optError && <div className="mt-3"><ErrorNote>{optError}</ErrorNote></div>}
 

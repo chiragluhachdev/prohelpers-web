@@ -29,6 +29,7 @@ type Finance = {
     bookings: number; gross: number; services: number; platformFee: number;
     commission: number; helperPayout: number;
     platformEarned: number; awaitingPayment: number; referralCredit: number;
+    discount: number; surcharge: number; gst: number;
     online: { bookings: number; gross: number };
     cash: { bookings: number; gross: number };
   };
@@ -110,7 +111,7 @@ export default function FinancePage() {
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Platform earned" value={rupees(t.platformEarned)} sub="Fee + commission − referral credit" tone="green" />
+        <Stat label="Platform earned" value={rupees(t.platformEarned)} sub="Fee + surcharge + commission − discounts & referral credit" tone="green" />
         <Stat label="Gross booked" value={rupees(t.gross)} sub={`${t.bookings} completed bookings`} />
         <Stat
           label="Commission owed"
@@ -192,7 +193,10 @@ export default function FinancePage() {
           <KeyValue
             items={[
               ["Services", rupees(t.services)],
-              ["Service fee", rupees(t.platformFee)],
+              ["Discounts given", t.discount ? `− ${rupees(t.discount)}` : rupees(0)],
+              ["Platform fee", rupees(t.platformFee)],
+              ["Surcharges", rupees(t.surcharge)],
+              ["GST collected", rupees(t.gst)],
               ["Customer total", rupees(t.gross)],
               ["Helper commission", rupees(t.commission)],
               ["Helper payout", rupees(t.helperPayout)],

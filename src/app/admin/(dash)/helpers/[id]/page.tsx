@@ -7,9 +7,10 @@ import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import { dateTime, relative, rupees, titleCase } from "@/lib/format";
+import { ComplaintsPanel, RatingsGivenPanel, RejectionsPanel, type Complaint, type GivenRating, type Rejections } from "@/components/AccountPanels";
 import {
   Avatar, Badge, Button, Card, Cell, EmptyState, ErrorNote, Field, Input,
-  KeyValue, Modal, PageHeader, Row, SectionTitle, Spinner, StatusBadge,
+  KeyValue, Modal, PageHeader, Row, SectionTitle, Select, Spinner, StatusBadge,
   Table, Textarea,
 } from "@/components/ui";
 
@@ -45,6 +46,18 @@ type Detail = {
     fromUserId?: { _id: string; name: string; role: string };
     taskId?: { _id: string; shortId: string };
   }[];
+  ratingsGiven?: GivenRating[];
+  rejections?: Rejections;
+  complaints?: { raised: Complaint[]; about: Complaint[] };
+  /** UC-C26 — the same figures the helper sees in their own app. */
+  money?: {
+    completedJobs: number; gross: number; commission: number; netEarning: number;
+    adjustments: number; paid: number; payable: number; outstanding: number; balance: number;
+  };
+  ledger?: {
+    id: string; txnId: string; type: string; direction: "CREDIT" | "DEBIT"; amount: number;
+    source: string; status: string; note: string; taskCode: string; at: string;
+  }[];
   earnings: Record<string, number>;
 };
 
@@ -63,6 +76,12 @@ export default function HelperDetailPage() {
   const { data, error, loading, reload } = useApi<Detail>(`/api/admin/helpers/${id}`);
 
   const [busy, setBusy] = useState("");
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustAmount, setAdjustAmount] = useState("");
+  const [adjustDirection, setAdjustDirection] = useState<"CREDIT" | "DEBIT">("CREDIT");
+  const [adjustNote, setAdjustNote] = useState("");
+  const [correctionOpen, setCorrectionOpen] = useState(false);
+  const [correctionReason, setCorrectionReason] = useState("");
   const [statsOpen, setStatsOpen] = useState(false);
   const [statsDraft, setStatsDraft] = useState({ experienceYears: "", jobsShown: "" });
   const [statsError, setStatsError] = useState("");
@@ -113,6 +132,14 @@ export default function HelperDetailPage() {
             {profile.approvalStatus !== "REJECTED" && (
               <Button variant="secondary" disabled={!!busy} onClick={() => setRejectOpen(true)}>
                 Reject
+              </Button>
+            )}
+            <Button variant="secondary" disabled={!!busy} onClick={() => setAdjustOpen(true)}>
+              Adjust money
+            </Button>
+            {profile.approvalStatus !== "APPROVED" && (
+              <Button variant="secondary" disabled={!!busy} onClick={() => setCorrectionOpen(true)}>
+                Ask for a correction
               </Button>
             )}
             {blocked ? (
@@ -265,6 +292,36 @@ export default function HelperDetailPage() {
             )}
           </Card>
 
+          {!!data.ledger?.length && (
+            <Card padded={false}>
+              <div className="px-5 pt-5">
+                <SectionTitle title="Wallet transactions" />
+              </div>
+              <div className="max-h-96 overflow-y-auto">
+                <Table head={["Transaction", "Type", "Amount", "Status"]}>
+                  {data.ledger.map((row) => (
+                    <Row key={row.id}>
+                      <Cell>
+                        <p className="tabular text-[12.5px]">{row.txnId}</p>
+                        <p className="text-xs text-ink-muted">
+                          {dateTime(row.at)}{row.taskCode ? ` · ${row.taskCode}` : ""}
+                        </p>
+                      </Cell>
+                      <Cell className="text-[13px]">
+                        {titleCase(row.type)}
+                        {row.note && <p className="text-xs text-ink-muted">{row.note}</p>}
+                      </Cell>
+                      <Cell className={`tabular whitespace-nowrap font-medium ${row.direction === "CREDIT" ? "text-forest-700" : "text-rose-ink"}`}>
+                        {row.direction === "CREDIT" ? "+" : "−"}{rupees(row.amount)}
+                      </Cell>
+                      <Cell><Badge tone={row.status === "SETTLED" ? "green" : row.status === "REVERSED" ? "slate" : "amber"}>{titleCase(row.status)}</Badge></Cell>
+                    </Row>
+                  ))}
+                </Table>
+              </div>
+            </Card>
+          )}
+
           {/* --------------------------------------------------- ratings */}
           <Card padded={false}>
             <div className="px-5 pt-5">
@@ -307,6 +364,86 @@ export default function HelperDetailPage() {
               </div>
             )}
           </Card>
+
+          <RatingsGivenPanel ratings={data.ratingsGiven} otherRole="customers" />
+
+          <ComplaintsPanel complaints={data.complaints} />
+
+          <RejectionsPanel rejections={data.rejections} blocked={helper.accountStatus === "blocked"} />
+
+          <Modal
+            open={adjustOpen}
+            title="Adjust this helper's money"
+            subtitle="Written as its own wallet transaction with a reason — balances are never edited."
+            onClose={() => setAdjustOpen(false)}
+          >
+            <div className="grid gap-4">
+              <Field label="Direction">
+                <Select value={adjustDirection} onChange={(e) => setAdjustDirection(e.target.value as "CREDIT" | "DEBIT")}>
+                  <option value="CREDIT">Pay the helper more (credit)</option>
+                  <option value="DEBIT">Take back from the helper (debit)</option>
+                </Select>
+              </Field>
+              <Field label="Amount (₹)">
+                <Input type="number" min={1} value={adjustAmount} onChange={(e) => setAdjustAmount(e.target.value)} />
+              </Field>
+              <Field label="What is it for?" hint="The helper is told this.">
+                <Textarea rows={2} value={adjustNote} onChange={(e) => setAdjustNote(e.target.value)} placeholder="Travel allowance for a long journey" />
+              </Field>
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setAdjustOpen(false)}>Cancel</Button>
+                <Button
+                  disabled={!!busy || !adjustNote.trim() || !(Number(adjustAmount) > 0)}
+                  onClick={() =>
+                    run("adjust", async () => {
+                      await api(`/api/admin/helpers/${id}/adjustment`, {
+                        method: "POST",
+                        body: { amount: Number(adjustAmount), direction: adjustDirection, note: adjustNote.trim() },
+                      });
+                      setAdjustOpen(false);
+                      setAdjustAmount("");
+                      setAdjustNote("");
+                    })
+                  }
+                >
+                  {busy === "adjust" ? "Saving…" : "Post adjustment"}
+                </Button>
+              </div>
+            </div>
+          </Modal>
+
+          <Modal
+            open={correctionOpen}
+            title="Ask for a correction"
+            subtitle="The application goes back to the helper to fix and submit again. Nothing is rejected."
+            onClose={() => setCorrectionOpen(false)}
+          >
+            <div className="grid gap-4">
+              <Field label="What needs fixing?">
+                <Textarea
+                  rows={3}
+                  value={correctionReason}
+                  onChange={(e) => setCorrectionReason(e.target.value)}
+                  placeholder="The Aadhaar photo is blurred — please upload a clearer one."
+                />
+              </Field>
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setCorrectionOpen(false)}>Cancel</Button>
+                <Button
+                  disabled={!!busy || correctionReason.trim().length < 3}
+                  onClick={() =>
+                    run("correction", async () => {
+                      await api(`/api/admin/helpers/${id}/request-correction`, { method: "POST", body: { reason: correctionReason.trim() } });
+                      setCorrectionOpen(false);
+                      setCorrectionReason("");
+                    })
+                  }
+                >
+                  {busy === "correction" ? "Sending…" : "Send back for correction"}
+                </Button>
+              </div>
+            </div>
+          </Modal>
         </div>
 
         {/* ------------------------------------------------------ sidebar */}
@@ -394,11 +531,17 @@ export default function HelperDetailPage() {
 
           <Card>
             <SectionTitle title="Money" />
+            {/* UC-C26 — read off the bookings and the ledger, never a stored balance. */}
             <KeyValue
               items={[
-                ["Earned", rupees(data.earnings?.JOB_EARNING)],
-                ["Commission owed", rupees(data.earnings?.PLATFORM_COMMISSION)],
-                ["Paid out", rupees(data.earnings?.PAYOUT)],
+                ["Completed jobs", String(data.money?.completedJobs ?? 0)],
+                ["Gross", rupees(data.money?.gross)],
+                ["Platform commission", rupees(data.money?.commission)],
+                ["Adjustments", rupees(data.money?.adjustments)],
+                ["Already paid", rupees(data.money?.paid)],
+                ["Payable to helper", rupees(data.money?.payable)],
+                ["Outstanding from helper", rupees(data.money?.outstanding)],
+                ["Net earning", rupees(data.money?.netEarning)],
               ]}
             />
 

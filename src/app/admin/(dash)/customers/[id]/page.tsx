@@ -6,8 +6,9 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { dateTime, relative, rupees, titleCase } from "@/lib/format";
+import { ComplaintsPanel, RatingsGivenPanel, RejectionsPanel, type Complaint, type GivenRating, type Rejections } from "@/components/AccountPanels";
 import {
-  Avatar, Button, Card, Cell, EmptyState, ErrorNote, Field,
+  Avatar, Badge, Button, Card, Cell, EmptyState, ErrorNote, Field,
   KeyValue, Modal, PageHeader, Row, SectionTitle, Spinner, StatusBadge,
   Table, Textarea,
 } from "@/components/ui";
@@ -29,6 +30,15 @@ type Detail = {
     fromUserId?: { _id: string; name: string; role: string };
     taskId?: { _id: string; shortId: string };
   }[];
+  ratingsGiven?: GivenRating[];
+  rejections?: Rejections;
+  complaints?: { raised: Complaint[]; about: Complaint[] };
+  /** UC-C40 — what they have paid, and their referral balance movements. */
+  payments?: {
+    orderId: string; amount: number; status: string; method: string;
+    gatewayPaymentId: string | null; paidAt: string | null; createdAt: string; taskCode: string;
+  }[];
+  referralLedger?: { id: string; txnId: string; type: string; amount: number; note: string; taskCode: string; at: string }[];
 };
 
 export default function CustomerDetailPage() {
@@ -166,6 +176,59 @@ export default function CustomerDetailPage() {
               </div>
             )}
           </Card>
+
+          <RatingsGivenPanel ratings={data.ratingsGiven} otherRole="helpers" />
+
+          <Card padded={false}>
+            <div className="px-5 pt-5">
+              <SectionTitle title="Money" />
+              <p className="text-[13px] text-ink-soft">
+                What this customer has paid in the app, and every movement of their referral balance.
+              </p>
+            </div>
+            {!data.payments?.length && !data.referralLedger?.length ? (
+              <EmptyState title="Nothing yet" body="In-app payments and referral balance show up here." />
+            ) : (
+              <div className="mt-2 divide-y divide-line">
+                {(data.payments ?? []).map((pay) => (
+                  <div key={pay.orderId} className="flex items-start justify-between gap-3 px-5 py-3">
+                    <div className="min-w-0">
+                      <p className="text-[13.5px] font-medium text-ink">
+                        Paid in the app{pay.method ? ` · ${pay.method}` : ""}
+                      </p>
+                      <p className="tabular text-[11.5px] text-ink-muted">
+                        {pay.orderId}{pay.taskCode ? ` · ${pay.taskCode}` : ""} · {dateTime(pay.paidAt || pay.createdAt)}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="tabular text-[13.5px] font-medium">{rupees(pay.amount)}</p>
+                      <Badge tone={pay.status === "PAID" ? "green" : pay.status === "FAILED" ? "rose" : "amber"}>
+                        {titleCase(pay.status)}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+                {(data.referralLedger ?? []).map((row) => (
+                  <div key={row.id} className="flex items-start justify-between gap-3 px-5 py-3">
+                    <div className="min-w-0">
+                      <p className="text-[13.5px] font-medium text-ink">{titleCase(row.type)}</p>
+                      <p className="text-[12px] text-ink-muted">{row.note}</p>
+                      <p className="tabular text-[11.5px] text-ink-muted">
+                        {row.txnId}{row.taskCode ? ` · ${row.taskCode}` : ""} · {dateTime(row.at)}
+                      </p>
+                    </div>
+                    <p className={`tabular shrink-0 text-[13.5px] font-medium ${row.amount >= 0 ? "text-forest-700" : "text-ink"}`}>
+                      {row.amount >= 0 ? "+" : "−"}{rupees(Math.abs(row.amount))}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <ComplaintsPanel complaints={data.complaints} />
+
+          <RejectionsPanel rejections={data.rejections} blocked={customer.accountStatus === "blocked"} />
         </div>
 
         {/* ------------------------------------------------------ sidebar */}
