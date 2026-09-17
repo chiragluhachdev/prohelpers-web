@@ -30,13 +30,12 @@ type Detail = {
     };
   };
   profile: {
-    gender?: string; experienceYears?: number; bio?: string;
+    gender?: string; bio?: string;
     aadhaarLast4?: string; aadhaarName?: string; kycStatus: string; kycMethod?: string; kycVerifiedAt?: string;
     approvalStatus: string; rejectionReason?: string; submittedAt?: string; reviewedAt?: string;
     services: string[]; societies?: string[];
     serviceArea?: { label?: string; lat?: number; lng?: number; radiusKm?: number };
     isOnline: boolean; dnd: boolean; ratingAvg: number; ratingCount: number; completedJobs: number;
-    jobsShown?: number;
     paymentDetails?: { method?: "UPI" | "BANK"; upiId?: string; accountNo?: string; ifsc?: string };
   } | null;
   documents: Doc[];
@@ -61,15 +60,6 @@ type Detail = {
   earnings: Record<string, number>;
 };
 
-const DEFAULT_JOBS_SHOWN = 50;
-
-/** Same rule as the API: "N+" until the real count passes it; 0 shows the real count. */
-function jobsLabel(p: { completedJobs?: number; jobsShown?: number }) {
-  const real = p.completedJobs ?? 0;
-  const shown = p.jobsShown ?? DEFAULT_JOBS_SHOWN;
-  return real >= shown ? String(real) : `${shown}+`;
-}
-
 export default function HelperDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
@@ -82,9 +72,6 @@ export default function HelperDetailPage() {
   const [adjustNote, setAdjustNote] = useState("");
   const [correctionOpen, setCorrectionOpen] = useState(false);
   const [correctionReason, setCorrectionReason] = useState("");
-  const [statsOpen, setStatsOpen] = useState(false);
-  const [statsDraft, setStatsDraft] = useState({ experienceYears: "", jobsShown: "" });
-  const [statsError, setStatsError] = useState("");
   const [actionError, setActionError] = useState("");
   const [rejectOpen, setRejectOpen] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
@@ -435,32 +422,11 @@ export default function HelperDetailPage() {
             </div>
             <KeyValue
               items={[
-                ["Experience", profile.experienceYears ? `${profile.experienceYears} years` : "—"],
-                [
-                  "Jobs shown to customers",
-                  <span key="jobs" className="tabular font-semibold">{jobsLabel(profile)}</span>,
-                ],
-                ["Completed on Pro Helper", <span key="real" className="tabular">{profile.completedJobs}</span>],
+                ["Jobs completed", <span key="jobs" className="tabular font-semibold">{profile.completedJobs}</span>],
                 ["Gender", titleCase(profile.gender)],
                 ["Account", <StatusBadge key="s" status={helper.accountStatus} />],
               ]}
             />
-            <div className="mt-4 flex justify-end border-t border-line pt-4">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  setStatsDraft({
-                    experienceYears: String(profile.experienceYears ?? 0),
-                    jobsShown: String(profile.jobsShown ?? DEFAULT_JOBS_SHOWN),
-                  });
-                  setStatsError("");
-                  setStatsOpen(true);
-                }}
-              >
-                Edit experience &amp; jobs
-              </Button>
-            </div>
             {profile.bio && <p className="mt-4 border-t border-line pt-4 text-sm leading-relaxed text-ink-soft">{profile.bio}</p>}
           </Card>
 
@@ -552,79 +518,6 @@ export default function HelperDetailPage() {
       </div>
 
       {/* -------------------------------------------------------- modals */}
-      <Modal
-        open={statsOpen}
-        title="Experience and jobs"
-        subtitle="What customers see on this helper's card when they are assigned. The real completed count is kept separately and never changes here."
-        onClose={() => setStatsOpen(false)}
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Years of experience" hint="0 – 60. Half-years are fine.">
-            <Input
-              type="number"
-              min={0}
-              max={60}
-              step={0.5}
-              value={statsDraft.experienceYears}
-              onChange={(e) => setStatsDraft((d) => ({ ...d, experienceYears: e.target.value }))}
-            />
-          </Field>
-          <Field label="Jobs shown to customers" hint="Shows as “N+” until real jobs pass it. 0 shows the real count.">
-            <Input
-              type="number"
-              min={0}
-              step={1}
-              value={statsDraft.jobsShown}
-              onChange={(e) => setStatsDraft((d) => ({ ...d, jobsShown: e.target.value }))}
-            />
-          </Field>
-        </div>
-
-        <div className="mt-3 rounded-[10px] bg-sunken px-3 py-2.5 text-[13px] text-ink-soft">
-          Customers will see{" "}
-          <span className="font-semibold text-ink">
-            {jobsLabel({ completedJobs: profile.completedJobs, jobsShown: Number(statsDraft.jobsShown) || 0 })} jobs
-          </span>
-          {Number(statsDraft.experienceYears) > 0 && (
-            <>
-              {" "}and{" "}
-              <span className="font-semibold text-ink">{Number(statsDraft.experienceYears)} yrs experience</span>
-            </>
-          )}
-          . Real completed on Pro Helper: <span className="tabular">{profile.completedJobs}</span>.
-        </div>
-
-        {statsError && <div className="mt-3"><ErrorNote>{statsError}</ErrorNote></div>}
-
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setStatsOpen(false)}>Cancel</Button>
-          <Button
-            disabled={busy === "stats"}
-            onClick={async () => {
-              setBusy("stats");
-              setStatsError("");
-              try {
-                await api(`/api/admin/helpers/${id}/profile`, {
-                  method: "PATCH",
-                  body: {
-                    experienceYears: Number(statsDraft.experienceYears),
-                    jobsShown: Number(statsDraft.jobsShown),
-                  },
-                });
-                await reload();
-                setStatsOpen(false);
-              } catch (err) {
-                setStatsError(err instanceof Error ? err.message : "Could not save.");
-              } finally {
-                setBusy("");
-              }
-            }}
-          >
-            {busy === "stats" ? "Saving…" : "Save"}
-          </Button>
-        </div>
-      </Modal>
-
       <Modal open={rejectOpen} title="Reject this helper" onClose={() => setRejectOpen(false)}>
         <div className="grid gap-4">
           <Field label="Reason" hint="The helper sees this, so say what they need to fix.">
