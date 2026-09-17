@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import { dateTime, relative, rupees, titleCase } from "@/lib/format";
 import { ComplaintsPanel, RatingsGivenPanel, RejectionsPanel, type Complaint, type GivenRating, type Rejections } from "@/components/AccountPanels";
+import { DeleteAccountModal } from "@/components/DeleteAccountModal";
 import {
   Avatar, Badge, Button, Card, Cell, EmptyState, ErrorNote, Field, Input,
   KeyValue, Modal, PageHeader, Row, SectionTitle, Select, Spinner, StatusBadge,
@@ -74,6 +75,7 @@ export default function HelperDetailPage() {
   const [correctionReason, setCorrectionReason] = useState("");
   const [actionError, setActionError] = useState("");
   const [rejectOpen, setRejectOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
   const [reason, setReason] = useState("");
 
@@ -138,6 +140,9 @@ export default function HelperDetailPage() {
                 Block
               </Button>
             )}
+            <Button variant="ghost" disabled={!!busy} onClick={() => setDeleteOpen(true)}>
+              Delete account
+            </Button>
           </div>
         }
       />
@@ -518,6 +523,15 @@ export default function HelperDetailPage() {
       </div>
 
       {/* -------------------------------------------------------- modals */}
+      <DeleteAccountModal
+        open={deleteOpen}
+        id={id}
+        name={helper.name}
+        role="helper"
+        onClose={() => setDeleteOpen(false)}
+        onDeleted={() => router.push("/admin/helpers")}
+      />
+
       <Modal open={rejectOpen} title="Reject this helper" onClose={() => setRejectOpen(false)}>
         <div className="grid gap-4">
           <Field label="Reason" hint="The helper sees this, so say what they need to fix.">

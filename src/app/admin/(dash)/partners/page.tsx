@@ -12,6 +12,7 @@ import {
   SkeletonRows, Input,
 } from "@/components/ui";
 import { FilterBar, Pagination, SearchFilter } from "@/components/filters";
+import { DeleteAccountModal } from "@/components/DeleteAccountModal";
 import { useColumns } from "@/lib/useColumns";
 
 type Partner = {
@@ -38,6 +39,7 @@ function PartnersView() {
   ]);
 
   const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState<Partner | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
@@ -91,7 +93,8 @@ function PartnersView() {
             isVisible("phone") && "Phone",
             isVisible("code") && "Code",
             isVisible("status") && "Status",
-            isVisible("joined") && "Joined"
+            isVisible("joined") && "Joined",
+            "",
           ].filter(Boolean)}>
             {data.partners.map((p) => (
               <Row key={p.id}>
@@ -107,6 +110,9 @@ function PartnersView() {
                 {isVisible("code") && <Cell className="font-mono text-sm tracking-widest">{p.referralCode || "—"}</Cell>}
                 {isVisible("status") && <Cell><StatusBadge status={p.status} /></Cell>}
                 {isVisible("joined") && <Cell className="whitespace-nowrap text-[13px] text-ink-muted">{relative(p.createdAt)}</Cell>}
+                <Cell className="text-right">
+                  <Button size="sm" variant="ghost" onClick={() => setDeleting(p)}>Delete</Button>
+                </Cell>
               </Row>
             ))}
           </Table>
@@ -116,6 +122,18 @@ function PartnersView() {
       {data && (
         <Pagination page={data.page} pages={data.pages} total={data.total} noun="partners" onPage={(p) => set({ page: String(p) })} />
       )}
+
+      <DeleteAccountModal
+        open={Boolean(deleting)}
+        id={deleting?.id ?? ""}
+        name={deleting?.name ?? ""}
+        role="partner"
+        onClose={() => setDeleting(null)}
+        onDeleted={async () => {
+          setDeleting(null);
+          await reload();
+        }}
+      />
 
       <Modal open={adding} title="Add Referral Partner" onClose={() => setAdding(false)}>
         <div className="grid gap-4">

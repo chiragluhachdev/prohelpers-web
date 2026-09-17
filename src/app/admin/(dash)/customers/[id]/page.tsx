@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { DeleteAccountModal } from "@/components/DeleteAccountModal";
 import { useApi } from "@/lib/useApi";
 import { dateTime, relative, rupees, titleCase } from "@/lib/format";
 import { ComplaintsPanel, RatingsGivenPanel, RejectionsPanel, type Complaint, type GivenRating, type Rejections } from "@/components/AccountPanels";
@@ -49,6 +50,7 @@ export default function CustomerDetailPage() {
   const [busy, setBusy] = useState("");
   const [actionError, setActionError] = useState("");
   const [blockOpen, setBlockOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [reason, setReason] = useState("");
 
   async function run(label: string, fn: () => Promise<unknown>) {
@@ -93,6 +95,9 @@ export default function CustomerDetailPage() {
                 Block
               </Button>
             )}
+            <Button variant="ghost" disabled={!!busy} onClick={() => setDeleteOpen(true)}>
+              Delete account
+            </Button>
           </div>
         }
       />
@@ -288,6 +293,15 @@ export default function CustomerDetailPage() {
       </div>
 
       {/* -------------------------------------------------------- modals */}
+      <DeleteAccountModal
+        open={deleteOpen}
+        id={id}
+        name={customer.name}
+        role="customer"
+        onClose={() => setDeleteOpen(false)}
+        onDeleted={() => router.push("/admin/customers")}
+      />
+
       <Modal open={blockOpen} title="Block this account" onClose={() => setBlockOpen(false)}>
         <div className="grid gap-4">
           <p className="text-sm text-ink-soft">
