@@ -26,7 +26,7 @@ type Helper = {
 
 type Payload = { helpers: Helper[]; counts: Record<string, number>; total: number; page: number; pages: number };
 
-const STATUSES = ["", "PENDING_VERIFICATION", "APPROVED", "REJECTED", "DRAFT"] as const;
+const STATUSES = ["", "PENDING_VERIFICATION", "APPROVED", "REJECTED", "DRAFT", "BLOCKED"] as const;
 
 const DEFAULTS = {
   status: "", q: "", online: "", account: "", kyc: "", service: "", society: "",

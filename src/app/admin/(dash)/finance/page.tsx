@@ -41,7 +41,7 @@ type Finance = {
 
 type Txn = {
   id: string; code: string; status: string;
-  services: { name: string; nameHi?: string; amount: number }[];
+  services: { name: string; amount: number }[];
   customer: { id: string; name: string; phone: string } | null;
   helper: { id: string; name: string; phone: string } | null;
   completedAt?: string; settledAt?: string;

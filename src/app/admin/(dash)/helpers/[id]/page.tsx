@@ -226,40 +226,11 @@ export default function HelperDetailPage() {
                         <img src={doc.url} alt={doc.type} className="h-32 w-full object-cover" />
                       )}
                     </a>
-                    <div className="flex items-center justify-between gap-2 px-3 py-2.5">
-                      <div className="min-w-0">
-                        <p className="truncate text-[13px] font-medium text-ink">{titleCase(doc.type)}</p>
-                        <p className="truncate text-xs text-ink-muted">{relative(doc.createdAt)}</p>
-                      </div>
-                      <StatusBadge status={doc.status} />
+                    {/* Documents are approved or rejected with the helper, never one by one. */}
+                    <div className="min-w-0 px-3 py-2.5">
+                      <p className="truncate text-[13px] font-medium text-ink">{titleCase(doc.type)}</p>
+                      <p className="truncate text-xs text-ink-muted">{relative(doc.createdAt)}</p>
                     </div>
-                    {doc.status === "PENDING" && (
-                      <div className="flex gap-2 border-t border-line px-3 py-2">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          disabled={!!busy}
-                          onClick={() => run(doc._id, () => api(`/api/admin/documents/${doc._id}/review`, { method: "POST", body: { status: "APPROVED" } }))}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={!!busy}
-                          onClick={() =>
-                            run(doc._id, () =>
-                              api(`/api/admin/documents/${doc._id}/review`, {
-                                method: "POST",
-                                body: { status: "REJECTED", remark: "Not readable — please re-upload." },
-                              }),
-                            )
-                          }
-                        >
-                          Reject
-                        </Button>
-                      </div>
-                    )}
                     {doc.remark && <p className="border-t border-line px-3 py-2 text-xs text-ink-muted">{doc.remark}</p>}
                   </div>
                 ))}

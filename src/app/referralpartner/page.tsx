@@ -68,7 +68,6 @@ export default function PartnerDashboard() {
   // Profile Edit State
   const [editingName, setEditingName] = useState(false);
   const [profileName, setProfileName] = useState("");
-  const [profileLang, setProfileLang] = useState("English");
 
   // Phone Change State
   const [changingPhone, setChangingPhone] = useState(false);
@@ -100,7 +99,6 @@ export default function PartnerDashboard() {
     } else if (user) {
       loadData();
       setProfileName(user.name);
-      setProfileLang(localStorage.getItem("partnerLang") || "English");
     }
   }, [user, loading, router]);
 
@@ -168,11 +166,6 @@ export default function PartnerDashboard() {
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to save name.");
     }
-  };
-
-  const handleLangChange = (lang: string) => {
-    setProfileLang(lang);
-    localStorage.setItem("partnerLang", lang);
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -495,16 +488,16 @@ export default function PartnerDashboard() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-ink">Language</p>
-                          <p className="text-sm text-ink-soft mt-1">{profileLang}</p>
+                          <p className="text-sm text-ink-soft mt-1">English</p>
                         </div>
-                        <select 
+                        {/* English only for now; the others are shown as on the way. */}
+                        <select
                           className="text-sm bg-sunken border border-line rounded-md px-2 py-1 text-ink focus:outline-none focus:ring-1 focus:ring-forest-500"
-                          value={profileLang}
-                          onChange={(e) => handleLangChange(e.target.value)}
+                          value="English"
+                          onChange={() => {}}
                         >
                           <option>English</option>
-                          <option>Hindi</option>
-                          <option>Marathi</option>
+                          <option disabled>Hindi (coming soon)</option>
                         </select>
                       </div>
                     </div>

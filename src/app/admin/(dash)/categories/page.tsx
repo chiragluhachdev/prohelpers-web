@@ -12,7 +12,6 @@ import { FilterBar, SearchFilter, SelectFilter } from "@/components/filters";
 type Category = {
   _id: string;
   name: string;
-  nameHi?: string;
   icon: string;
   color: string;
   active: boolean;
@@ -77,7 +76,7 @@ export default function CategoriesPage() {
   const [status, setStatus] = useState("");
   const needle = q.toLowerCase();
   const categories = allCategories
-    .filter((c) => !needle || [c.name, c.nameHi, c.icon].some((v) => String(v || "").toLowerCase().includes(needle)))
+    .filter((c) => !needle || [c.name, c.icon].some((v) => String(v || "").toLowerCase().includes(needle)))
     .filter((c) =>
       status === "live" ? c.active && !c.comingSoon
         : status === "soon" ? c.comingSoon
@@ -142,7 +141,6 @@ export default function CategoriesPage() {
               >
                 <Cell className={!c.active ? "opacity-60" : ""}>
                   <p className="font-medium text-ink">{c.name}</p>
-                  {c.nameHi && <p className="text-[13px] text-ink-muted">{c.nameHi}</p>}
                 </Cell>
                 <Cell>
                   <Badge tone="sky">{c.icon}</Badge>
@@ -184,14 +182,6 @@ export default function CategoriesPage() {
               value={draft.name || ""}
               onChange={(e) => setDraft({ ...draft, name: e.target.value })}
               placeholder="e.g. Plumbing"
-            />
-          </Field>
-
-          <Field label="Hindi Name" hint="Optional, displayed in Hindi UI">
-            <Input
-              value={draft.nameHi || ""}
-              onChange={(e) => setDraft({ ...draft, nameHi: e.target.value })}
-              placeholder="e.g. प्लम्बर"
             />
           </Field>
 

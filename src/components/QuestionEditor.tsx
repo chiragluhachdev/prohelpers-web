@@ -8,18 +8,13 @@ export type OptionType = "select" | "multiselect" | "number" | "boolean" | "text
 export type ServiceOption = {
   key: string;
   label: string;
-  labelHi?: string;
   help?: string;
-  helpHi?: string;
   placeholder?: string;
-  placeholderHi?: string;
   type: OptionType;
   choices?: string[];
-  choicesHi?: string[];
   choicePrices?: number[];
   choiceMinutes?: number[];
   unit?: string;
-  unitHi?: string;
   min?: number | null;
   max?: number | null;
   step?: number;
@@ -41,19 +36,19 @@ export const OPTION_TYPES: { value: OptionType; label: string; hint: string }[] 
 ];
 
 export const blankOption = (): ServiceOption => ({
-  key: "", label: "", labelHi: "", type: "select",
-  choices: ["", ""], choicesHi: ["", ""], choicePrices: [0, 0], choiceMinutes: [0, 0],
+  key: "", label: "", type: "select",
+  choices: ["", ""], choicePrices: [0, 0], choiceMinutes: [0, 0],
   required: false, defaultValue: "", pricePerUnit: 0, minutesPerUnit: 0,
 });
 
 const num = (v: string) => (v === "" ? 0 : Number(v));
 const hasChoices = (t: OptionType) => t === "select" || t === "multiselect";
 
-/** Grows the per-choice arrays so every choice has a Hindi label, a price and a duration. */
+/** Grows the per-choice arrays so every choice has a price and a duration. */
 function withAlignedChoices(o: ServiceOption): ServiceOption {
   const n = o.choices?.length ?? 0;
   const pad = <T,>(arr: T[] | undefined, fill: T) => Array.from({ length: n }, (_, i) => arr?.[i] ?? fill);
-  return { ...o, choicesHi: pad(o.choicesHi, ""), choicePrices: pad(o.choicePrices, 0), choiceMinutes: pad(o.choiceMinutes, 0) };
+  return { ...o, choicePrices: pad(o.choicePrices, 0), choiceMinutes: pad(o.choiceMinutes, 0) };
 }
 
 /**
@@ -114,9 +109,6 @@ export function QuestionEditor({
                 <Field label="Question" hint="What the customer reads">
                   <Input value={o.label ?? ""} placeholder="Number of people" onChange={(e) => patch(i, { label: e.target.value })} />
                 </Field>
-                <Field label="Question in Hindi" hint="Empty shows the English">
-                  <Input value={o.labelHi ?? ""} placeholder="कितने लोगों के लिए" onChange={(e) => patch(i, { labelHi: e.target.value })} />
-                </Field>
                 <Field label="Answer type" hint={typeHint}>
                   <Select
                     value={o.type}
@@ -145,20 +137,16 @@ export function QuestionEditor({
               {/* ------------------------------------------------ choices */}
               {hasChoices(o.type) && (
                 <div className="mt-3">
-                  <div className="mb-1.5 grid grid-cols-[1fr_1fr_72px_72px_24px] gap-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
-                    <span>Choice</span><span>In Hindi</span><span>+ ₹</span><span>+ min</span><span />
+                  <div className="mb-1.5 grid grid-cols-[1fr_72px_72px_24px] gap-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-muted">
+                    <span>Choice</span><span>+ ₹</span><span>+ min</span><span />
                   </div>
                   <div className="space-y-1.5">
                     {(o.choices ?? []).map((c, ci) => (
-                      <div key={ci} className="grid grid-cols-[1fr_1fr_72px_72px_24px] items-center gap-2">
+                      <div key={ci} className="grid grid-cols-[1fr_72px_72px_24px] items-center gap-2">
                         <Input
                           value={c}
                           placeholder={`Choice ${ci + 1}`}
                           onChange={(e) => patch(i, { choices: o.choices!.map((x, xi) => (xi === ci ? e.target.value : x)) })}
-                        />
-                        <Input
-                          value={o.choicesHi?.[ci] ?? ""}
-                          onChange={(e) => patch(i, { choicesHi: o.choicesHi!.map((x, xi) => (xi === ci ? e.target.value : x)) })}
                         />
                         <Input
                           type="number" min={0}
@@ -177,7 +165,6 @@ export function QuestionEditor({
                           onClick={() =>
                             patch(i, {
                               choices: o.choices!.filter((_, xi) => xi !== ci),
-                              choicesHi: o.choicesHi!.filter((_, xi) => xi !== ci),
                               choicePrices: o.choicePrices!.filter((_, xi) => xi !== ci),
                               choiceMinutes: o.choiceMinutes!.filter((_, xi) => xi !== ci),
                             })
@@ -230,9 +217,6 @@ export function QuestionEditor({
                   <Field label="Unit" hint="e.g. people">
                     <Input value={o.unit ?? ""} onChange={(e) => patch(i, { unit: e.target.value })} />
                   </Field>
-                  <Field label="Unit in Hindi" hint="e.g. लोग">
-                    <Input value={o.unitHi ?? ""} onChange={(e) => patch(i, { unitHi: e.target.value })} />
-                  </Field>
                   <Field label="Starts at">
                     <Input type="number" value={String(o.defaultValue ?? 0)} onChange={(e) => patch(i, { defaultValue: num(e.target.value) })} />
                   </Field>
@@ -276,18 +260,12 @@ export function QuestionEditor({
                   <Field label="Example text" hint="Shown faintly in the empty box">
                     <Input value={o.placeholder ?? ""} onChange={(e) => patch(i, { placeholder: e.target.value })} />
                   </Field>
-                  <Field label="Example text in Hindi">
-                    <Input value={o.placeholderHi ?? ""} onChange={(e) => patch(i, { placeholderHi: e.target.value })} />
-                  </Field>
                 </div>
               )}
 
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <Field label="Help line" hint="Optional, under the question">
                   <Input value={o.help ?? ""} onChange={(e) => patch(i, { help: e.target.value })} />
-                </Field>
-                <Field label="Help line in Hindi">
-                  <Input value={o.helpHi ?? ""} onChange={(e) => patch(i, { helpHi: e.target.value })} />
                 </Field>
               </div>
             </div>
