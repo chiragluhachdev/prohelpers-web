@@ -8,16 +8,16 @@ import { apiQuery } from "@/lib/useFilters";
 import { DateFilter, FilterBar, Pagination, SearchFilter, SelectFilter, type FilterOptions } from "@/components/filters";
 import {
   Badge, Button, Card, Cell, Detail, EmptyState, ErrorNote, Field, Input,
-  Modal, PageHeader, Row, SectionTitle, Spinner, Table,
+  Modal, PageHeader, Row, SectionTitle, Spinner, Table, Textarea,
 } from "@/components/ui";
 
-type Settings = Record<string, number | string | boolean>;
+type Settings = Record<string, number | string | boolean | string[]>;
 
 type SettingField = {
   key: string;
   label: string;
   suffix?: string;
-  type?: "number" | "text" | "boolean" | "select";
+  type?: "number" | "text" | "boolean" | "select" | "lines";
   help?: string;
   /** For type "select". */
   choices?: { value: string; label: string }[];
@@ -86,7 +86,7 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
   },
   {
     title: "Referrals",
-    blurb: "Share a code, a friend joins, both get referral balance. Customers can only spend it on bookings, up to the share of each booking set below; helpers can only use it to pay what they owe the platform. It is never paid out as cash, and the platform covers every rupee of it.",
+    blurb: "Someone shares their code, a friend signs up with it, and both are paid once that friend's first booking is done — never just for installing the app. What the sharer earns depends on who they are and what kind of account their friend opened, so bringing in a helper can be worth more than bringing in a customer. Customers spend their balance on bookings, up to the share set below; helpers use theirs to pay off what they owe the platform. It is never paid out as cash, and the platform covers every rupee.",
     keys: [
       {
         key: "referral_enabled",
@@ -94,9 +94,50 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
         type: "boolean",
         help: "Off: new sign-ups cannot enter a code. Balances already earned can still be used.",
       },
-      { key: "referral_reward_amount", label: "Reward to the person who referred", suffix: "₹ per friend who qualifies" },
-      { key: "referral_welcome_amount", label: "Reward to the friend who joins", suffix: "₹, once they qualify" },
-      { key: "partner_reward_amount", label: "Cashback to a referral partner", suffix: "₹ per person they sign up — guards, society staff" },
+      {
+        key: "referral_reward_customer_refers_customer",
+        label: "A customer brings a new customer",
+        suffix: "₹ to the customer who shared the code",
+        help: "Paid once the new customer's first booking is done.",
+      },
+      {
+        key: "referral_reward_customer_refers_helper",
+        label: "A customer brings a new helper",
+        suffix: "₹ to the customer who shared the code",
+      },
+      {
+        key: "referral_reward_helper_refers_customer",
+        label: "A helper brings a new customer",
+        suffix: "₹ to the helper who shared the code",
+      },
+      {
+        key: "referral_reward_helper_refers_helper",
+        label: "A helper brings a new helper",
+        suffix: "₹ to the helper who shared the code",
+      },
+      {
+        key: "referral_reward_partner_refers_customer",
+        label: "A referral partner brings a new customer",
+        suffix: "₹ to the partner",
+        help: "Partners are the guards and society staff you add under Partners.",
+      },
+      {
+        key: "referral_reward_partner_refers_helper",
+        label: "A referral partner brings a new helper",
+        suffix: "₹ to the partner",
+      },
+      {
+        key: "referral_welcome_customer",
+        label: "Welcome bonus — joined as a customer",
+        suffix: "₹ to the person who used the code",
+        help: "They can spend it on bookings, up to the share set below.",
+      },
+      {
+        key: "referral_welcome_helper",
+        label: "Welcome bonus — joined as a helper",
+        suffix: "₹ to the person who used the code",
+        help: "A helper can only use it to pay off what they owe the platform.",
+      },
       {
         key: "referral_qualify_event", label: "A referral earns its reward when", type: "select",
         help: "Never for installing the app alone: the referred person has to actually use it.",
@@ -228,6 +269,44 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
     ],
   },
   {
+    title: "Ratings",
+    blurb: "What each side can tick when rating the other. Which list they see follows the stars they gave, so the words match the mood — and \"Other\", with the free-text box underneath, is always offered as well. One per line, in the order they appear.",
+    keys: [
+      {
+        key: "rating_reasons_helper_low",
+        type: "lines",
+        label: "Rating a helper · 1 or 2 stars",
+        help: "What the customer picks from when something clearly went badly.",
+      },
+      {
+        key: "rating_reasons_helper_mid",
+        type: "lines",
+        label: "Rating a helper · 3 stars",
+      },
+      {
+        key: "rating_reasons_helper_high",
+        type: "lines",
+        label: "Rating a helper · 4 or 5 stars",
+      },
+      {
+        key: "rating_reasons_customer_low",
+        type: "lines",
+        label: "Rating a customer · 1 or 2 stars",
+        help: "What the helper picks from about the household they worked in. Customers never see these.",
+      },
+      {
+        key: "rating_reasons_customer_mid",
+        type: "lines",
+        label: "Rating a customer · 3 stars",
+      },
+      {
+        key: "rating_reasons_customer_high",
+        type: "lines",
+        label: "Rating a customer · 4 or 5 stars",
+      },
+    ],
+  },
+  {
     title: "Cancellation",
     blurb: "UC-C22 — who can cancel, and until when. Every cancellation records who, when, why, the status it was in, and what it did to money. Admins can cancel anything that isn't finished.",
     keys: [
@@ -259,6 +338,18 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
       {
         key: "auto_cancel_unstarted_hours", label: "System cancels a job not started this long after its slot",
         suffix: "hours (0 = never)",
+      },
+      {
+        key: "cancel_reasons_customer",
+        type: "lines",
+        label: "Reasons a customer picks from",
+        help: "One per line, in the order they appear. \"Something else\", with a written note, is always offered last.",
+      },
+      {
+        key: "cancel_reasons_helper",
+        type: "lines",
+        label: "Reasons a helper picks from",
+        help: "Shown when a helper drops a job they accepted. \"Something else\" is always offered last.",
       },
       {
         key: "auto_cancel_no_helper_hours", label: "System closes a search that found nobody, if not retried within",
@@ -449,6 +540,17 @@ export default function SettingsPage() {
                       {(choices ?? []).map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
                   </Field>
+                ) :
+                type === "lines" ? (
+                  <div key={key} className="sm:col-span-2 lg:col-span-3">
+                    <Field label={label} hint={help}>
+                      <Textarea
+                        rows={5}
+                        value={Array.isArray(draft[key]) ? (draft[key] as string[]).join("\n") : String(draft[key] ?? "")}
+                        onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value.split("\n") }))}
+                      />
+                    </Field>
+                  </div>
                 ) :
                 type === "boolean" ? (
                   <div key={key} className="sm:col-span-2 lg:col-span-3">

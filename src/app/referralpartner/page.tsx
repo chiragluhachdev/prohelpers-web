@@ -36,7 +36,7 @@ const CameraIcon = () => (
 type DashboardData = {
   code: string;
   enabled: boolean;
-  rewardAmount: number;
+  rates: { customer: number; helper: number };
   balance: number;
   totals: { totalReferrals: number; successfulReferrals: number; earned: number; redeemed: number; pendingRewards: number; };
   history: Array<{ id: string; date: string; name: string; role: string; status: string; reward: number; }>;
@@ -285,22 +285,26 @@ export default function PartnerDashboard() {
                       <div className="flex items-start gap-3">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-forest-100 text-sm font-bold text-forest-700">1</div>
                         <div>
-                          <h4 className="font-semibold text-ink text-sm">Share your code</h4>
-                          <p className="text-xs text-ink-soft mt-0.5">Share your unique code with anyone.</p>
+                          <h4 className="font-semibold text-ink text-sm">Give them your code</h4>
+                          <p className="text-xs text-ink-soft mt-0.5">Anyone can use it — someone who needs help at home, or someone looking for work.</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-forest-100 text-sm font-bold text-forest-700">2</div>
                         <div>
-                          <h4 className="font-semibold text-ink text-sm">First Booking</h4>
-                          <p className="text-xs text-ink-soft mt-0.5">They register and complete a booking.</p>
+                          <h4 className="font-semibold text-ink text-sm">They sign up and finish one booking</h4>
+                          <p className="text-xs text-ink-soft mt-0.5">They enter your code while signing up. The reward is earned when their first booking is done.</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-forest-100 text-sm font-bold text-forest-700">3</div>
                         <div>
-                          <h4 className="font-semibold text-ink text-sm">Earn {rupees(data.rewardAmount)}</h4>
-                          <p className="text-xs text-ink-soft mt-0.5">Money is added to your wallet instantly.</p>
+                          <h4 className="font-semibold text-ink text-sm">You get paid</h4>
+                          <p className="text-xs text-ink-soft mt-0.5">
+                            <strong className="text-ink">{rupees(data.rates.customer)}</strong> for a customer who books help, and{" "}
+                            <strong className="text-ink">{rupees(data.rates.helper)}</strong> for a helper who joins to work. It goes
+                            straight to your wallet, and you can ask for a payout any time.
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -309,7 +313,10 @@ export default function PartnerDashboard() {
 
                 <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-800 flex items-start gap-2">
                   <span className="text-lg leading-none">⚠️</span>
-                  <p><strong>Note:</strong> Rewards are credited only after the referred user completes their <strong>first booking</strong>.</p>
+                  <p>
+                    <strong>Note:</strong> Signing up alone earns nothing. The reward is paid once the person you referred{" "}
+                    <strong>completes their first booking</strong>, so a name can sit in your list as pending for a while.
+                  </p>
                 </div>
 
                 <div>
