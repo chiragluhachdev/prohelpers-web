@@ -36,7 +36,7 @@ const CameraIcon = () => (
 type DashboardData = {
   code: string;
   enabled: boolean;
-  rates: { customer: number; helper: number };
+  rewardAmount: number;
   balance: number;
   totals: { totalReferrals: number; successfulReferrals: number; earned: number; redeemed: number; pendingRewards: number; };
   history: Array<{ id: string; date: string; name: string; role: string; status: string; reward: number; }>;
@@ -316,9 +316,8 @@ export default function PartnerDashboard() {
                         <div>
                           <h4 className="font-semibold text-ink text-sm">You get paid</h4>
                           <p className="text-xs text-ink-soft mt-0.5">
-                            <strong className="text-ink">{rupees(data.rates.customer)}</strong> for a customer who books help, and{" "}
-                            <strong className="text-ink">{rupees(data.rates.helper)}</strong> for a helper who joins to work. It goes
-                            straight to your wallet, and you can ask for a payout any time.
+                            <strong className="text-ink">{rupees(data.rewardAmount)}</strong> for everyone you sign up, customer or
+                            helper. It goes straight to your wallet, and you can ask for a payout any time.
                           </p>
                         </div>
                       </div>

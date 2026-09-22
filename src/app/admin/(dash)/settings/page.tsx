@@ -86,7 +86,7 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
   },
   {
     title: "Referrals",
-    blurb: "Someone shares their code, a friend signs up with it, and both are paid once that friend's first booking is done — never just for installing the app. What the sharer earns depends on who they are and what kind of account their friend opened, so bringing in a helper can be worth more than bringing in a customer. Customers spend their balance on bookings, up to the share set below; helpers use theirs to pay off what they owe the platform. It is never paid out as cash, and the platform covers every rupee.",
+    blurb: "Two different things, set separately. Referral points go to the person whose code was used; a joining bonus goes to the person who joined with it. Each is paid at the rate for that person's own role — a helper who refers earns helper points, a customer who joins earns the customer bonus — and a referral partner counts as a helper on both sides. Nobody is paid for installing the app: both sides land once the person who joined finishes their first booking. Customers spend their balance on bookings, up to the share set below; helpers use theirs to pay off what they owe the platform. It is never cash, and the platform covers every rupee.",
     keys: [
       {
         key: "referral_enabled",
@@ -95,48 +95,27 @@ const GROUPS: { title: string; blurb: string; keys: SettingField[] }[] = [
         help: "Off: new sign-ups cannot enter a code. Balances already earned can still be used.",
       },
       {
-        key: "referral_reward_customer_refers_customer",
-        label: "A customer brings a new customer",
-        suffix: "₹ to the customer who shared the code",
-        help: "Paid once the new customer's first booking is done.",
+        key: "helper_referral_points",
+        label: "Helper referral points",
+        suffix: "₹ to a helper whose code was used",
+        help: "A referral partner is treated as a helper, so they earn this too — whoever they signed up.",
       },
       {
-        key: "referral_reward_customer_refers_helper",
-        label: "A customer brings a new helper",
-        suffix: "₹ to the customer who shared the code",
+        key: "helper_joining_bonus",
+        label: "Helper joining bonus",
+        suffix: "₹ to a new helper who joined with a code",
+        help: "A helper can only spend it on what they owe the platform. Partners are paid this rate as well.",
       },
       {
-        key: "referral_reward_helper_refers_customer",
-        label: "A helper brings a new customer",
-        suffix: "₹ to the helper who shared the code",
+        key: "customer_referral_points",
+        label: "Customer referral points",
+        suffix: "₹ to a customer whose code was used",
       },
       {
-        key: "referral_reward_helper_refers_helper",
-        label: "A helper brings a new helper",
-        suffix: "₹ to the helper who shared the code",
-      },
-      {
-        key: "referral_reward_partner_refers_customer",
-        label: "A referral partner brings a new customer",
-        suffix: "₹ to the partner",
-        help: "Partners are the guards and society staff you add under Partners.",
-      },
-      {
-        key: "referral_reward_partner_refers_helper",
-        label: "A referral partner brings a new helper",
-        suffix: "₹ to the partner",
-      },
-      {
-        key: "referral_welcome_customer",
-        label: "Welcome bonus — joined as a customer",
-        suffix: "₹ to the person who used the code",
-        help: "They can spend it on bookings, up to the share set below.",
-      },
-      {
-        key: "referral_welcome_helper",
-        label: "Welcome bonus — joined as a helper",
-        suffix: "₹ to the person who used the code",
-        help: "A helper can only use it to pay off what they owe the platform.",
+        key: "customer_joining_bonus",
+        label: "Customer joining bonus",
+        suffix: "₹ to a new customer who joined with a code",
+        help: "Spendable on bookings, up to the share set below.",
       },
       {
         key: "referral_qualify_event", label: "A referral earns its reward when", type: "select",
