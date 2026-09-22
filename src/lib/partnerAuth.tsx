@@ -12,9 +12,20 @@ const partnerTokenStore = {
 
 export type PartnerUser = { id: string; name: string; phone: string; role: string; status: string; photoUrl?: string };
 
+/** Carries the status code, so a refused token can be told from a server that is simply unreachable. */
+export class PartnerApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+    this.name = "PartnerApiError";
+  }
+}
+
 type AuthState = {
   user: PartnerUser | null;
   loading: boolean;
+  /** A session is stored, but the server could not be reached to check it. */
+  unreachable: boolean;
+  retry: () => void;
   requestOtp: (phone: string) => Promise<{ devCode?: string, dummyAuth?: boolean }>;
   verifyOtpAndSignIn: (phone: string, code: string) => Promise<void>;
   signOut: () => void;
@@ -42,7 +53,7 @@ export async function partnerApi<T = unknown>(path: string, options: { method?: 
       partnerTokenStore.clear();
       if (!window.location.pathname.startsWith("/referralpartner/login")) window.location.href = "/referralpartner/login";
     }
-    throw new Error(payload?.error?.message || "Something went wrong.");
+    throw new PartnerApiError(res.status, payload?.error?.message || "Something went wrong.");
   }
   return payload as T;
 }
@@ -50,18 +61,45 @@ export async function partnerApi<T = unknown>(path: string, options: { method?: 
 export function PartnerAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<PartnerUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [unreachable, setUnreachable] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const router = useRouter();
 
+  /*
+   * A signed-in partner stays signed in. Only a token the server actually
+   * refuses ends the session — a slow server or a dead connection used to
+   * clear it too, which is why people found themselves logged out.
+   */
   useEffect(() => {
+    let live = true;
     if (!partnerTokenStore.get()) {
       setLoading(false);
       return;
     }
+    setLoading(true);
+    setUnreachable(false);
     partnerApi<{ user: PartnerUser }>("/api/auth/me")
-      .then((r) => setUser(r.user))
-      .catch(() => partnerTokenStore.clear())
-      .finally(() => setLoading(false));
-  }, []);
+      .then((r) => {
+        if (!live) return;
+        setUser(r.user);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (!live) return;
+        const status = err instanceof PartnerApiError ? err.status : 0;
+        if (status === 401 || status === 403) {
+          partnerTokenStore.clear();
+        } else {
+          setUnreachable(true);
+        }
+        setLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, [attempt]);
+
+  const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
   const reloadUser = useCallback(async () => {
     try {
@@ -92,7 +130,7 @@ export function PartnerAuthProvider({ children }: { children: React.ReactNode })
 
       partnerTokenStore.set(r.token);
       setUser(r.user);
-      router.push("/referralpartner");
+      router.replace("/referralpartner");
     },
     [router],
   );
@@ -104,8 +142,8 @@ export function PartnerAuthProvider({ children }: { children: React.ReactNode })
   }, [router]);
 
   const value = useMemo(
-    () => ({ user, loading, requestOtp, verifyOtpAndSignIn, signOut, reloadUser, setUser }),
-    [user, loading, requestOtp, verifyOtpAndSignIn, signOut, reloadUser]
+    () => ({ user, loading, unreachable, retry, requestOtp, verifyOtpAndSignIn, signOut, reloadUser, setUser }),
+    [user, loading, unreachable, retry, requestOtp, verifyOtpAndSignIn, signOut, reloadUser]
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

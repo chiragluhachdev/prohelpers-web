@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { usePartnerAuth } from "@/lib/partnerAuth";
-import { Button, ErrorNote, Field, Input } from "@/components/ui";
+import { Button, ErrorNote, Field, Input, Spinner } from "@/components/ui";
 import { Logo } from "@/components/logo";
 
 export default function PartnerLogin() {
-  const { requestOtp, verifyOtpAndSignIn } = usePartnerAuth();
+  const { user, loading, requestOtp, verifyOtpAndSignIn } = usePartnerAuth();
+  const router = useRouter();
+
+  // Already signed in? There is nothing to do here — go to the dashboard.
+  useEffect(() => {
+    if (!loading && user) router.replace("/referralpartner");
+  }, [user, loading, router]);
 
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -42,6 +49,15 @@ export default function PartnerLogin() {
       setBusy(false);
     }
   };
+
+  // Don't flash the sign-in form at someone who is already signed in.
+  if (loading || user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface md:bg-sunken">
+        <Spinner label="Signing you in" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-surface p-4 text-ink md:bg-sunken">

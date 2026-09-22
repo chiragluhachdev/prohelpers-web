@@ -45,7 +45,7 @@ type DashboardData = {
 };
 
 export default function PartnerDashboard() {
-  const { user, loading, signOut, reloadUser, requestOtp, verifyOtpAndSignIn } = usePartnerAuth();
+  const { user, loading, unreachable, retry, signOut, reloadUser, requestOtp, verifyOtpAndSignIn } = usePartnerAuth();
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<"home" | "wallet" | "profile">("home");
@@ -92,7 +92,9 @@ export default function PartnerDashboard() {
   };
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/referralpartner/login");
+    // Only send them to sign in when the session is genuinely gone, never
+    // because the server could not be reached.
+    if (!loading && !user && !unreachable) router.replace("/referralpartner/login");
     if (user && !user.name) {
       setNeedsName(true);
       setFetching(false);
@@ -100,7 +102,7 @@ export default function PartnerDashboard() {
       loadData();
       setProfileName(user.name);
     }
-  }, [user, loading, router]);
+  }, [user, loading, unreachable, router]);
 
   const handleShare = async () => {
     if (!data?.code) return;
@@ -230,6 +232,19 @@ export default function PartnerDashboard() {
       setPhoneBusy(false);
     }
   };
+
+  /*
+   * Signed in, but the server did not answer. Offer another go rather than
+   * dropping them at the sign-in screen — the session is still good.
+   */
+  if (!loading && !user && unreachable) {
+    return (
+      <div className="mx-auto grid max-w-sm gap-4 p-8 text-center">
+        <ErrorNote>We could not reach Pro Helper just now. Your sign-in is still saved.</ErrorNote>
+        <Button onClick={retry}>Try again</Button>
+      </div>
+    );
+  }
 
   if (loading || fetching) return <Spinner label="Loading your dashboard…" />;
   if (!user) return null;
